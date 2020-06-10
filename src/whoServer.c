@@ -19,6 +19,7 @@ int main(int argc, char const *argv[]){
 		if(!strcmp(argv[i],"-w"))
 			numThreads =  atoi(argv[i+1]);
 	}
-	
+
+
 	return 0;
 }
