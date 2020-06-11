@@ -10,7 +10,6 @@
 #include <fcntl.h>
 #include <poll.h>
 #include "../include/utils.h"
-#define stdinFd 0;
 
 static volatile sig_atomic_t signalPid = -1;
 
@@ -40,11 +39,7 @@ int main(int argc, char const *argv[]){
 
 	/*--------------------------- Handle Signals -------------------------------------*/ 
 
-	static struct sigaction SIGUSR1act,SIGINTact,SIGQUITact,SIGCHLDact;
-
-	sigset_t set;
-	sigfillset(&set);
-	sigprocmask(SIG_SETMASK, &set,NULL);
+	static struct sigaction SIGCHLDact;
 	
 	SIGCHLDact.sa_flags = SA_SIGINFO;
 	SIGCHLDact.sa_sigaction = SIGCHLD_pid;
@@ -64,7 +59,7 @@ int main(int argc, char const *argv[]){
 			bufferSize = atoi(argv[i+1]);
 		if(!strcmp(argv[i],"-s"))
 			strcpy(serverIP,argv[i+1]);
-		if(!strcmp(argv[i],"-w"))
+		if(!strcmp(argv[i],"-p"))
 			strcpy(serverPort,argv[i+1]);
 	}
 	if(bufferSize<0 || numWorkers<0){
@@ -105,7 +100,7 @@ int main(int argc, char const *argv[]){
         }
         else if(pid == 0){
         	sprintf(fifoBuffer,"%d",bufferSize);
-           	execlp("./worker","worker","-rfn",workerArray[i]->writeFifo,"-s",serverIP,"-p",serverPort,"-b",fifoBuffer,NULL);
+           	execlp("./worker","worker","-rfn",workerArray[i]->writeFifo,"-b",fifoBuffer,NULL);
         }
         else{
         	workerArray[i]->pid = pid;		// save the process id of every worker
@@ -123,6 +118,14 @@ int main(int argc, char const *argv[]){
 			if(workerArray[i]->writeFd > 0)
 				break;
 		}
+	}
+
+	/*-------------------- Send workers IP adress - Port number -------------------------*/
+
+	for(int i = 0; i < numWorkers; i++){	
+
+		writeBytes(serverPort,workerArray[i]->writeFd,bufferSize);
+		writeBytes(serverIP,workerArray[i]->writeFd,bufferSize);
 	}
 	
 	/*----------------------- Distribute the subdirectories -----------------------------*/
@@ -201,11 +204,8 @@ int main(int argc, char const *argv[]){
 
 	/*----------------------------------------------------------------------------------*/
 
-	
 	int flag = TRUE;
 	
-	sigprocmask(SIG_UNBLOCK, &set,NULL);	// allow signals
-
 	while(flag){
 
 		if(SIGCHLDFlag){	// if a child is killed
@@ -273,9 +273,11 @@ int main(int argc, char const *argv[]){
 			SIGCHLDFlag = FALSE;
 			signalPid = -1;
 		}
+		if(wait(NULL)<=0)
+			flag = FALSE;
 	}
 		
-	while(wait(NULL)>0);
+	//while(wait(NULL)>0);
 
 	/*--------------------------- Clean the memory -------------------------------------*/ 
 
