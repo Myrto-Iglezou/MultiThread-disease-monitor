@@ -12,6 +12,7 @@
 #include <stdlib.h> /* exit */
 #include <ctype.h> /* toupper */
 #include <signal.h> /* signal */
+#include <pthread.h>
 #define err(mess){fprintf(stderr,"\033[1;31mERROR: \033[0m: %s\n",mess);exit(1);}
 
 int main(int argc, char const *argv[]){

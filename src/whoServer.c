@@ -11,7 +11,32 @@
 #include <stdlib.h> /* exit */
 #include <ctype.h> /* toupper */
 #include <signal.h> /* signal */
+#include <pthread.h>
 #define err(mess){fprintf(stderr,"\033[1;31mERROR: \033[0m: %s\n",mess);exit(1);}
+
+typedef struct {
+	int* data;
+	int start;
+	int end;
+	int count;
+}buffer_t;
+
+buffer_t buffer;
+
+void initialize(buffer_t * buffer,int num){
+	buffer->start = 0;
+	buffer->end = -1;
+	buffer->count = 0;
+	buffer->data = malloc(num*sizeof(int));
+}
+
+void deleteBuffer(buffer_t buffer){
+	free(buffer->data);
+}
+
+void * thread_function(void * arg){
+
+}
 
 int main(int argc, char const *argv[]){
 
@@ -21,12 +46,13 @@ int main(int argc, char const *argv[]){
 	struct sockaddr_in server,client;
 
 	struct sockaddr *serverptr=(struct sockaddr *) &server;
-	struct sockaddr *clientptr=(struct sockaddr *) &client;
+	// struct sockaddr *clientptr=(struct sockaddr *) &client;
 
 	struct hostent *rem;
 	socklen_t clientlen;
-	char buffer[64];
-
+	char buff[64];
+	int err;
+	pthread_t * tids;
 
 	for(int i=0; i<argc;i++){
 		
@@ -40,7 +66,23 @@ int main(int argc, char const *argv[]){
 			numThreads =  atoi(argv[i+1]);
 	}
 
-	if((server_fd = socket( AF_INET , SOCK_STREAM ,0)) < 0)			/* Create socket */
+	initialize(buffer,bufferSize);
+
+	/*------------------------- Create Threads --------------------------*/
+	
+
+	if((tids = malloc(numThreads*sizeof(pthread_t))) == NULL)
+		err("malloc");
+
+	for(int i=0 ; i < numThreads ; i++){
+	
+		if((err = pthread_create(tids+i, NULL ,thread_function, ))<0)
+			err("create thread");
+	}
+	
+	/*------------------- Create connection with client-------------------*/
+
+	if((server_fd = socket(AF_INET , SOCK_STREAM ,0)) < 0)			/* Create socket */
 		err("Socket");
 
 	server.sin_family = AF_INET; 		/* Internet domain */
@@ -60,24 +102,30 @@ int main(int argc, char const *argv[]){
 
 	printf("Accepted connection \n");
 
-	do{
-		if(read(client_fd,buffer,sizeof(buffer)) < 0)
-			err("Read");
-		
-		printf("%s\n",buffer );
-		
-		printf("Write: ");
-		scanf("%s",buffer);
+	/*---------------------------------------------------------------------*/
 
-		if(write(client_fd,buffer,sizeof(buffer)) < 0)
-			err("Write");
+	// do{
+	// 	if(read(client_fd,buffer,sizeof(buffer)) < 0)
+	// 		err("Read");
+		
+	// 	printf("%s\n",buffer );
+		
+	// 	printf("Write: ");
+	// 	scanf("%s",buffer);
 
-	}while(strcmp(buffer,"END")!=0);
+	// 	if(write(client_fd,buffer,sizeof(buffer)) < 0)
+	// 		err("Write");
+
+	// }while(strcmp(buffer,"END")!=0);
 
 	printf("Closing connection .\n");
 	close(client_fd); 	/* Close client socket */
 	close(server_fd);
 	
+	for(int i=0 ; i < numThreads ; i++){		/* Wait for thread termination */
+		if((err=pthread_join(*(tids + i),NULL))<0) 
+			err("pthread_join");
 
+	}
 	return 0;
 }
