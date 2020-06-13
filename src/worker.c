@@ -8,6 +8,12 @@
 #include <signal.h>
 #include <dirent.h>
 #include <fcntl.h>
+#include <sys/wait.h> /* sockets */
+#include <sys/types.h> /* sockets */
+#include <sys/socket.h> /* sockets */
+#include <netinet/in.h> /* internet sockets */
+#include <arpa/inet.h>
+#include <netdb.h> /* ge th os tb ya dd r */
 #include "../include/utils.h"
 #define TRUE 1
 #define FALSE 0
@@ -49,7 +55,8 @@ int main(int argc, char const *argv[]){
 	arrayOfStat = malloc(sizeof(statistics));
 	stat = malloc(sizeof(statistics));
 	int numOfFiles;
-	char serverIP[32],serverPort[32];
+	char serverIP[32];
+	int serverPort;
 	
 
 	/*---------------------------- Read from the input -------------------------------*/
@@ -77,7 +84,8 @@ int main(int argc, char const *argv[]){
 	buffer = malloc((message_size+1)*sizeof(char));
 	strcpy(buffer,"");
 
-	readBytes(rfd,serverPort,bufferSize,message_size);	
+	readBytes(rfd,buffer,bufferSize,message_size);	
+	serverPort = atoi(buffer);
 
 	free(buffer);
 
@@ -87,7 +95,8 @@ int main(int argc, char const *argv[]){
 	buffer = malloc((message_size+1)*sizeof(char));
 	strcpy(buffer,"");
 
-	readBytes(rfd,serverIP,bufferSize,message_size);	
+	readBytes(rfd,buffer,bufferSize,message_size);	
+	strcpy(serverIP,buffer);
 
 	free(buffer);
 
@@ -258,30 +267,38 @@ int main(int argc, char const *argv[]){
 		numOfFolders++;
 	}
 
+	/*-------------------------- Connect to server -----------------------------------*/
+
+	char buf[256];
+	int sock;
+
+	struct sockaddr_in server;
+	struct sockaddr * serverptr = (struct sockaddr *) &server;
+	struct hostent * rem;
+	struct in_addr server_addr;
+
+	inet_aton(serverIP,&server_addr);
+
+	if((sock = socket(AF_INET, SOCK_STREAM,0)) < 0)			/* Create socket */
+		err("Socket");
+
+	if((rem = gethostbyaddr((const char*)&server_addr,sizeof(server_addr),AF_INET)) == NULL)		/* Find server address */
+		err("gethostbyaddr");
+	
+	server.sin_family = AF_INET;		 /* Internet domain */
+	memcpy(&server.sin_addr,rem->h_addr,rem->h_length);
+	server.sin_port = htons(serverPort);	 /* Server port */
+
+	if(connect(sock,serverptr,sizeof(server)) < 0)
+		err("Connect");
+
 
 	/*--------------------------- Send Statistics -------------------------------------*/ 
 
-	// message_size = numOfstat;
-
-	// if(write(wfd,&message_size,sizeof(int))<0)
-	// 	err("Problem in writing");
-
-	// for (int i = 0; i < numOfstat; i++){	// send all statistics for every country to the parent
+	for (int i = 0; i < numOfstat; i++){	// send all statistics for every country to the parent
 		
-	// 	sendStat(arrayOfStat[i].date,bufferSize,wfd);		// date
-	// 	sendStat(arrayOfStat[i].country,bufferSize,wfd);	// country
-	// 	sendStat(arrayOfStat[i].disease,bufferSize,wfd);	// disease
-		
-	// 	buffer = malloc(sizeof(int));
-
-	// 	for (int k = 0; k < 4; k++){	// ranges
-			
-	// 		sprintf(buffer,"%d",arrayOfStat[i].ranges[k]);	
-	// 		sendStat(buffer,bufferSize,wfd);	
-	// 	}
-
-	// 	free(buffer);
-	// }
+		write(sock,&arrayOfStat[i],sizeof(statistics));
+	}
 	// char diseaseCountry[64];
 	// char* tempbuffer;
 

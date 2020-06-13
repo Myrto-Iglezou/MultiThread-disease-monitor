@@ -10,7 +10,6 @@
 #include <netdb.h> /* ge th os tb ya dd r */
 #include <unistd.h> /* fork */
 #include <stdlib.h> /* exit */
-#include <ctype.h> /* toupper */
 #include <signal.h> /* signal */
 #include <pthread.h>
 #define err(mess){fprintf(stderr,"\033[1;31mERROR: \033[0m: %s\n",mess);exit(1);}
