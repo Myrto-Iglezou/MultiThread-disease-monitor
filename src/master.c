@@ -206,78 +206,78 @@ int main(int argc, char const *argv[]){
 
 	int flag = TRUE;
 	
-	while(flag){
+	// while(flag){
 
-		if(SIGCHLDFlag){	// if a child is killed
+	// 	if(SIGCHLDFlag){	// if a child is killed
 
-			int workerNum,id;
-			id = signalPid;
+	// 		int workerNum,id;
+	// 		id = signalPid;
 
-			workerNum  = findNum(id,workerArray,numWorkers);
+	// 		workerNum  = findNum(id,workerArray,numWorkers);
 			
-			pid = fork();		// create a new child
+	// 		pid = fork();		// create a new child
 
-	        if(pid == -1){
-	           	err("fork failed" );
-	        }
-	        else if(pid == 0){
-		        sprintf(fifoBuffer,"%d",bufferSize);
-	           	execlp("./worker","worker","-rfn",workerArray[workerNum]->writeFifo,"-s",serverIP,"-p",serverPort,"-b",fifoBuffer,NULL);
-	        }
-	        else{
-	        	workerArray[workerNum]->pid = pid;
-	        } 
+	//         if(pid == -1){
+	//            	err("fork failed" );
+	//         }
+	//         else if(pid == 0){
+	// 	        sprintf(fifoBuffer,"%d",bufferSize);
+	//            	execlp("./worker","worker","-rfn",workerArray[workerNum]->writeFifo,"-s",serverIP,"-p",serverPort,"-b",fifoBuffer,NULL);
+	//         }
+	//         else{
+	//         	workerArray[workerNum]->pid = pid;
+	//         } 
 
-	        close(workerArray[workerNum]->writeFd);
+	//         close(workerArray[workerNum]->writeFd);
 
-	        while(1){
+	//         while(1){
 
-				workerArray[workerNum]->writeFd = open(workerArray[workerNum]->writeFifo, O_WRONLY);	// open fifo for write
+	// 			workerArray[workerNum]->writeFd = open(workerArray[workerNum]->writeFifo, O_WRONLY);	// open fifo for write
 				
-				if(workerArray[workerNum]->writeFd > 0)
-					break;
-			}
+	// 			if(workerArray[workerNum]->writeFd > 0)
+	// 				break;
+	// 		}
 
-			if(write(workerArray[workerNum]->writeFd,&countriesCounter[workerNum],sizeof(int))<0)
-				err("Problem in writing");
+	// 		if(write(workerArray[workerNum]->writeFd,&countriesCounter[workerNum],sizeof(int))<0)
+	// 			err("Problem in writing");
 
-	        for (int i = 0; i < countriesCounter[workerNum]; i++){
+	//         for (int i = 0; i < countriesCounter[workerNum]; i++){
 	       		
-	       		strcpy(path,cwd);
-				strcat(path,"/");
-				strcat(path,input_dir); 
-				strcat(path,"/");
-				strcat(path,workerArray[workerNum]->countries[i]);
+	//        		strcpy(path,cwd);
+	// 			strcat(path,"/");
+	// 			strcat(path,input_dir); 
+	// 			strcat(path,"/");
+	// 			strcat(path,workerArray[workerNum]->countries[i]);
 
-				strPointer = &path[0];
-				size = bufferSize;
-				message_size = strlen(path);
-				if(write(workerArray[workerNum]->writeFd,&message_size,sizeof(int))<0)
-					err("Problem in writing");
-				count = 0;
-				while(count < strlen(path)){
+	// 			strPointer = &path[0];
+	// 			size = bufferSize;
+	// 			message_size = strlen(path);
+	// 			if(write(workerArray[workerNum]->writeFd,&message_size,sizeof(int))<0)
+	// 				err("Problem in writing");
+	// 			count = 0;
+	// 			while(count < strlen(path)){
 
-					strPointer = &path[0];
-					strPointer+=count;
+	// 				strPointer = &path[0];
+	// 				strPointer+=count;
 					
-					if(((strlen(path)+1)-count)<size){
-						size = (strlen(path)+1)-count;					
-					}
-					strncpy(tempStr,strPointer,size);
-					if(write(workerArray[workerNum]->writeFd,tempStr,size)<0)
-						err("Problem in writing");
-					count+=size;
-				}  	
-	        }   	
+	// 				if(((strlen(path)+1)-count)<size){
+	// 					size = (strlen(path)+1)-count;					
+	// 				}
+	// 				strncpy(tempStr,strPointer,size);
+	// 				if(write(workerArray[workerNum]->writeFd,tempStr,size)<0)
+	// 					err("Problem in writing");
+	// 				count+=size;
+	// 			}  	
+	//         }   	
 			
-			SIGCHLDFlag = FALSE;
-			signalPid = -1;
-		}
-		if(wait(NULL)<=0)
-			flag = FALSE;
-	}
+	// 		SIGCHLDFlag = FALSE;
+	// 		signalPid = -1;
+	// 	}
+	// 	if(wait(NULL)<=0)
+	// 		flag = FALSE;
+	// }
 		
-	//while(wait(NULL)>0);
+	while(wait(NULL)>0);
 
 	/*--------------------------- Clean the memory -------------------------------------*/ 
 

@@ -50,10 +50,8 @@ int main(int argc, char const *argv[]){
 	int numOfentries = 20;
 	char* strPointer;
 	char message[256];
-	statistics * stat;
-	statistics * arrayOfStat;
-	arrayOfStat = malloc(sizeof(statistics));
-	stat = malloc(sizeof(statistics));
+	statistics * stat = calloc(1,sizeof(statistics));
+	statistics ** arrayOfStat = malloc(sizeof(statistics*));
 	int numOfFiles;
 	char serverIP[32];
 	int serverPort;
@@ -249,9 +247,9 @@ int main(int argc, char const *argv[]){
 						record = curBucket->records[j];
 						strcpy(stat->disease,record->data);
 						findRanges(&stat,record);
-						arrayOfStat = (statistics*) realloc(arrayOfStat,(numOfstat+1)*sizeof(statistics));
-						memset(&arrayOfStat[numOfstat],0,sizeof(statistics));
-						arrayOfStat[numOfstat] = *stat;		// save all statistics in an array
+						arrayOfStat = realloc(arrayOfStat,(numOfstat+1)*sizeof(statistics*));
+						arrayOfStat[numOfstat] = calloc(1,sizeof(statistics));
+						*arrayOfStat[numOfstat] = *stat;		// save all statistics in an array
 						numOfstat++;
 					}
 					curBucket = curBucket->next;
@@ -269,7 +267,6 @@ int main(int argc, char const *argv[]){
 
 	/*-------------------------- Connect to server -----------------------------------*/
 
-	char buf[256];
 	int sock;
 
 	struct sockaddr_in server;
@@ -292,13 +289,17 @@ int main(int argc, char const *argv[]){
 	if(connect(sock,serverptr,sizeof(server)) < 0)
 		err("Connect");
 
-
+	printf("Connect with server\n");
 	/*--------------------------- Send Statistics -------------------------------------*/ 
 
 	for (int i = 0; i < numOfstat; i++){	// send all statistics for every country to the parent
 		
-		write(sock,&arrayOfStat[i],sizeof(statistics));
+		// printStat(arrayOfStat[i]);
+		if(write(sock,arrayOfStat[i],sizeof(statistics))<0)
+			err("problem in writing");
 	}
+
+	printf("End of sending statistics\n");
 	// char diseaseCountry[64];
 	// char* tempbuffer;
 
@@ -508,9 +509,10 @@ int main(int argc, char const *argv[]){
 	// 	free(buffer);
 	// }
 
+	for (int i = 0; i < numOfstat; i++){
+		free(arrayOfStat[i]);
+	}
 	free(arrayOfStat);
-
-	free(stat);	
 
 	close(rfd);
 

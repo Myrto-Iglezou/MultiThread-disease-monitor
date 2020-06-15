@@ -31,6 +31,7 @@ typedef struct {
 buffer_t buffer;
 
 pthread_mutex_t mtx;
+pthread_mutex_t print_mtx;
 pthread_cond_t cond_nonempty;
 pthread_cond_t cond_nonfull;
 
@@ -73,17 +74,23 @@ fd_info returnFdInfo(buffer_t* buffer,int bufferSize){
 void * thread_function(void * arg){
 	fd_info data;
 	int bufferSize = *(int*) arg; 
+	printf("I'm thread\n");
 	data = returnFdInfo(&buffer,bufferSize);
-	if(strcmp(data.info,"q")){
+	pthread_cond_signal(&cond_nonfull);
 
-	}else if(strcmp(data.info,"s")){
+	if(!strcmp(data.info,"q")){
+
+	}else if(!strcmp(data.info,"s")){
 		/*  Receive Statistics */ 
-		statistics* stat = malloc(sizeof(statistics));
-		while(read(data.fd,stat,sizeof(statistics))<0){		// numOfloops --> how many statistics are
-			err("Problem in reading bytes");
-			printStat(stat);
-		}
+		printf("Receive Statistics\n");
+		statistics* stat = calloc(1,sizeof(statistics));
 		
+		while(read(data.fd,stat,sizeof(statistics))>0){		
+			pthread_mutex_lock(&print_mtx);
+			printStat(stat);
+			pthread_mutex_unlock(&print_mtx);
+		}
+
 	}else
 		err("problem with fd info");
 }
@@ -117,20 +124,6 @@ int main(int argc, char const *argv[]){
 			numThreads =  atoi(argv[i+1]);
 	}
 
-	initialize(&buffer,bufferSize);
-
-	/*---------------------------- Create Threads -----------------------------------*/
-	
-
-	// if((tids = malloc(numThreads*sizeof(pthread_t))) == NULL)
-	// 	err("malloc");
-
-	// for(int i=0 ; i < numThreads ; i++){
-	
-	// 	if((err = pthread_create(tids+i, NULL ,thread_function, ))<0)
-	// 		err("create thread");
-	// }
-	
 	/*------------------------- Create socket for queries -------------------------*/
 
 	if((query_fd = socket(AF_INET , SOCK_STREAM ,0)) < 0)			/* Create socket */
@@ -172,29 +165,55 @@ int main(int argc, char const *argv[]){
 	socket_fds[1].fd = statistics_fd;	// port for statistics
 	socket_fds[1].events = POLLIN;
 
+	initialize(&buffer,bufferSize);
+	pthread_mutex_init(&mtx,0);
+	pthread_mutex_init(&print_mtx,0);
+	pthread_cond_init(&cond_nonempty,0);
+	pthread_cond_init(&cond_nonfull,0);
+
+	/*---------------------------- Create Threads -----------------------------------*/
+	
+
+	if((tids = malloc(numThreads*sizeof(pthread_t))) == NULL)
+		err("malloc");
+
+	for(int i=0 ; i < numThreads ; i++){
+		printf("Create thread\n");
+		if(pthread_create(tids+i, NULL ,thread_function, (void*) &bufferSize)<0)
+			err("create thread");
+	}
+
+	printf("start poll\n");
+
 	while(1){
-		rc = poll(socket_fds,1,1);	
+		rc = poll(socket_fds,2,1);	
 		if(rc > 0){
 			if((socket_fds[0].revents & POLLIN)){				// if a queryPort has request			
 				if((answer_fd = accept(query_fd,NULL,0)) < 0)	/* accept connection */
 					err("Accept");
 				addFd(&buffer,answer_fd,"q",bufferSize);
+				pthread_cond_signal(&cond_nonempty);
 
 			}else if((socket_fds[1].revents & POLLIN)){			// if statistics have arrived
 				if((answer_fd = accept(statistics_fd,NULL,0)) < 0)	/* accept connection */
 					err("Accept");
+				printf("accept connection with worker\n");
 				addFd(&buffer,answer_fd,"s",bufferSize);
+				pthread_cond_signal(&cond_nonempty);
 			}
 		}
 	}
 
-	close(query_fd);
-	close(statistics_fd);
-	
 	for(int i=0 ; i < numThreads ; i++){		/* Wait for thread termination */
 		if((err=pthread_join(*(tids + i),NULL))<0) 
 			err("pthread_join");
 
 	}
+	close(query_fd);
+	close(statistics_fd);
+	pthread_cond_destroy(&cond_nonempty);
+	pthread_cond_destroy(&cond_nonfull);
+	pthread_mutex_destroy(&mtx);
+
 	return 0;
 }
