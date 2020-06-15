@@ -79,6 +79,13 @@ void * thread_function(void * arg){
 	pthread_cond_signal(&cond_nonfull);
 
 	if(!strcmp(data.info,"q")){
+		printf("Receive Query\n");
+		char buffer[150];
+		while(read(data.fd,buffer,sizeof(buffer))>0){
+			pthread_mutex_lock(&print_mtx);
+			printf("-- %s\n",buffer);
+			pthread_mutex_unlock(&print_mtx);
+		}
 
 	}else if(!strcmp(data.info,"s")){
 		/*  Receive Statistics */ 
@@ -100,14 +107,14 @@ int main(int argc, char const *argv[]){
 	int queryPortNum,statisticsPortNum;
 	int numThreads,bufferSize;
 	int query_fd,statistics_fd, answer_fd;
-	struct sockaddr_in query_server, statistics_server;
+	struct sockaddr_in query_server, statistics_server,worker;
 
 	struct sockaddr *query_serverptr=(struct sockaddr *) &query_server;
 	struct sockaddr *statistics_serverptr=(struct sockaddr *) &statistics_server;
-	// struct sockaddr *clientptr=(struct sockaddr *) &client;
+	struct sockaddr *workerptr=(struct sockaddr *) &worker;
 
 	struct hostent *rem;
-	socklen_t clientlen;
+	socklen_t workerlen;
 	char buff[64];
 	int err;
 	pthread_t * tids;
@@ -183,19 +190,22 @@ int main(int argc, char const *argv[]){
 			err("create thread");
 	}
 
+	/*-----------------------------------------------------------------------------*/
+
 	printf("start poll\n");
 
 	while(1){
-		rc = poll(socket_fds,2,1);	
+		rc = poll(socket_fds,2,-1);	
 		if(rc > 0){
 			if((socket_fds[0].revents & POLLIN)){				// if a queryPort has request			
 				if((answer_fd = accept(query_fd,NULL,0)) < 0)	/* accept connection */
 					err("Accept");
+				printf("accept connection with client\n");
 				addFd(&buffer,answer_fd,"q",bufferSize);
 				pthread_cond_signal(&cond_nonempty);
 
 			}else if((socket_fds[1].revents & POLLIN)){			// if statistics have arrived
-				if((answer_fd = accept(statistics_fd,NULL,0)) < 0)	/* accept connection */
+				if((answer_fd = accept(statistics_fd,workerptr,&workerlen)) < 0)	/* accept connection */
 					err("Accept");
 				printf("accept connection with worker\n");
 				addFd(&buffer,answer_fd,"s",bufferSize);

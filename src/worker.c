@@ -290,16 +290,35 @@ int main(int argc, char const *argv[]){
 		err("Connect");
 
 	printf("Connect with server\n");
+	
 	/*--------------------------- Send Statistics -------------------------------------*/ 
 
+
 	for (int i = 0; i < numOfstat; i++){	// send all statistics for every country to the parent
-		
-		// printStat(arrayOfStat[i]);
 		if(write(sock,arrayOfStat[i],sizeof(statistics))<0)
 			err("problem in writing");
 	}
 
 	printf("End of sending statistics\n");
+
+	/*---------------------- Recieve requests from server ------------------------------*/ 
+
+	int queries_fd;
+	struct sockaddr_in worker_server;
+	struct sockaddr *worker_serverptr=(struct sockaddr *) &query_server;
+
+	if((queries_fd = socket(AF_INET , SOCK_STREAM ,0)) < 0)			/* Create socket */
+		err("Socket");
+
+	worker_server.sin_family = AF_INET; 		/* Internet domain */
+	worker_server.sin_addr.s_addr = htonl(INADDR_ANY);
+	worker_server.sin_port = htons(statisticsPortNum); 		/* The given port */
+	
+	if(bind(queries_fd,worker_serverptr,sizeof(worker_server)) < 0)		/* Bind socket to address */
+		err("Bind");
+		
+	if(listen(queries_fd,5) < 0)		/* Listen for connections */
+		err("Listen");
 	// char diseaseCountry[64];
 	// char* tempbuffer;
 

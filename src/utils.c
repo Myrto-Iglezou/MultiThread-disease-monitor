@@ -21,6 +21,17 @@ int findWorkerFromCountry(char* country, workerInfo ** array,int numWorkers,int 
 	return -1;
 }
 
+void writeToSocket(int fd,char* message){
+	int message_size = (int) strlen(message);
+	write(fd,&message_size,sizeof(int));
+	write(fd,message,strlen(message)+1);
+}
+
+void readFromSocket(int fd,char* buffer){
+	int message_size;
+	read(fd,&message_size,sizeof(int));
+	read(fd,buffer,message_size+1);
+}
 void readBytes(int rfd,char* buffer,int bufferSize,int message_size){
 	int num;
 	char readBuffer[256];
@@ -97,35 +108,6 @@ void sendStat(char* data,int bufferSize,int wfd){
 		count+=size;
 		strPointer+=size;
 	}
-}
-
-void savestat(int readFd,int bufferSize,char* data,int sizeOfdata){
-	int count=0;
-	int message_size;
-	int num;
-	char readBuffer[256];
-
-	char* buffer = malloc(sizeOfdata);
-	strcpy(buffer,"");
-
-	if(read(readFd,&message_size,sizeof(int))<0)
-		err("Problem in writing");
-
-	if(bufferSize>message_size)
-		bufferSize = message_size + 1;
-
-	while(count < message_size){
-
-		if((num = read(readFd,readBuffer,bufferSize))<0)
-			err("Problem in reading!");
-
-		strncat(buffer,readBuffer,num);
-
-		count += bufferSize;
-	}
-	strcpy(data,buffer);
-
-	free(buffer);
 }
 
 void searchTree(Treenode* root,statistics** stat){		// find the ranges in the tree
