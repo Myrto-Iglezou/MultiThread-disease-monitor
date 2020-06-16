@@ -293,7 +293,6 @@ int main(int argc, char const *argv[]){
 	
 	/*--------------------------- Send Statistics -------------------------------------*/ 
 
-
 	for (int i = 0; i < numOfstat; i++){	// send all statistics for every country to the parent
 		if(write(sock,arrayOfStat[i],sizeof(statistics))<0)
 			err("problem in writing");
@@ -303,22 +302,41 @@ int main(int argc, char const *argv[]){
 
 	/*---------------------- Recieve requests from server ------------------------------*/ 
 
-	int queries_fd;
+	int queries_fd,server_fd;
+	socklen_t workerlen = 0;
 	struct sockaddr_in worker_server;
-	struct sockaddr *worker_serverptr=(struct sockaddr *) &query_server;
+	struct sockaddr *worker_serverptr=(struct sockaddr *) &worker_server;
 
 	if((queries_fd = socket(AF_INET , SOCK_STREAM ,0)) < 0)			/* Create socket */
 		err("Socket");
 
 	worker_server.sin_family = AF_INET; 		/* Internet domain */
 	worker_server.sin_addr.s_addr = htonl(INADDR_ANY);
-	worker_server.sin_port = htons(statisticsPortNum); 		/* The given port */
+	worker_server.sin_port = htons(0); 		/* autoselect 0 */
 	
 	if(bind(queries_fd,worker_serverptr,sizeof(worker_server)) < 0)		/* Bind socket to address */
 		err("Bind");
+	
+	if(getsockname(queries_fd,worker_serverptr,&workerlen)<0)
+		err("getsockname");
+
+	printf("My port is %d\n",ntohs(worker_server.sin_port));
 		
 	if(listen(queries_fd,5) < 0)		/* Listen for connections */
 		err("Listen");
+	
+	if((server_fd = accept(queries_fd,NULL,0)) < 0)	/* accept connection */
+		err("Accept");
+	
+	printf("accept connection with server\n");	
+	char readbuffer[256];	
+
+	while(1){
+		while(read(server_fd,readbuffer,sizeof(readbuffer))>0){
+			printf("%s\n",readbuffer );
+			
+		}
+	}
 	// char diseaseCountry[64];
 	// char* tempbuffer;
 

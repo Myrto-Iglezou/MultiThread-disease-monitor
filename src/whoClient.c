@@ -155,6 +155,13 @@ int main(int argc, char const *argv[]){
       readyFlag = 0;
   	
   	pthread_mutex_unlock(&mtx);
+
+  	while(1){
+  // 		while(read(server_fd,readbuffer,sizeof(readbuffer))>0){
+		// 	printf("%s\n",readbuffer );
+			
+		// }
+  	}
 	
 	for(int i=0 ; i < numThreads ; i++){		/* Wait for thread termination */
 		if(pthread_join(*(tids + i),NULL)<0) 

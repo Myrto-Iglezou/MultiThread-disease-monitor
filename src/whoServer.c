@@ -30,6 +30,17 @@ typedef struct {
 
 buffer_t buffer;
 
+int* workerFds;
+int numOfWorkers = 0;
+
+int portExists(int* array,int num,int port){
+	for (int i = 0; i < num; i++){
+		if(array[i] == port)
+			return TRUE;
+	}
+	return FALSE;
+}
+
 pthread_mutex_t mtx;
 pthread_mutex_t print_mtx;
 pthread_cond_t cond_nonempty;
@@ -85,6 +96,9 @@ void * thread_function(void * arg){
 			pthread_mutex_lock(&print_mtx);
 			printf("-- %s\n",buffer);
 			pthread_mutex_unlock(&print_mtx);
+			for (int i = 0; i < numOfWorkers; i++){
+				write(workerFds[i],buffer,strlen(buffer)+1);
+			}
 		}
 
 	}else if(!strcmp(data.info,"s")){
@@ -109,12 +123,14 @@ int main(int argc, char const *argv[]){
 	int query_fd,statistics_fd, answer_fd;
 	struct sockaddr_in query_server, statistics_server,worker;
 
+	workerFds = malloc(sizeof(int));
+
 	struct sockaddr *query_serverptr=(struct sockaddr *) &query_server;
 	struct sockaddr *statistics_serverptr=(struct sockaddr *) &statistics_server;
 	struct sockaddr *workerptr=(struct sockaddr *) &worker;
 
 	struct hostent *rem;
-	socklen_t workerlen;
+	socklen_t workerlen = 0;
 	char buff[64];
 	int err;
 	pthread_t * tids;
@@ -193,6 +209,7 @@ int main(int argc, char const *argv[]){
 	/*-----------------------------------------------------------------------------*/
 
 	printf("start poll\n");
+	int worker_fd;
 
 	while(1){
 		rc = poll(socket_fds,2,-1);	
@@ -207,6 +224,18 @@ int main(int argc, char const *argv[]){
 			}else if((socket_fds[1].revents & POLLIN)){			// if statistics have arrived
 				if((answer_fd = accept(statistics_fd,workerptr,&workerlen)) < 0)	/* accept connection */
 					err("Accept");
+				// if((rem = gethostbyaddr((char*) &worker.sin_addr.s_addr,sizeof(worker.sin_addr.s_addr),worker.sin_family)) == NULL){
+				// 	err("gethostbyaddr");
+				// }
+				worker_fd = ntohs(worker.sin_port);
+				socklen_t len = sizeof(worker.sin_addr.s_addr);	
+				if(getpeername(answer_fd,(struct sockaddr*)&worker.sin_addr.s_addr,&len)<0);
+				printf("--- worker fd: %d\n",worker_fd );
+				if(!portExists(workerFds,numOfWorkers,worker_fd)){
+					workerFds = realloc(workerFds,(numOfWorkers+1)*sizeof(int));
+					workerFds[numOfWorkers] = worker_fd;
+					numOfWorkers++;
+				}
 				printf("accept connection with worker\n");
 				addFd(&buffer,answer_fd,"s",bufferSize);
 				pthread_cond_signal(&cond_nonempty);
@@ -219,6 +248,7 @@ int main(int argc, char const *argv[]){
 			err("pthread_join");
 
 	}
+	free(workerFds);
 	close(query_fd);
 	close(statistics_fd);
 	pthread_cond_destroy(&cond_nonempty);
