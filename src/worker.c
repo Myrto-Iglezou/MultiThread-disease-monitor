@@ -290,21 +290,12 @@ int main(int argc, char const *argv[]){
 		err("Connect");
 
 	printf("Connect with server\n");
-	
-	/*--------------------------- Send Statistics -------------------------------------*/ 
-
-	for (int i = 0; i < numOfstat; i++){	// send all statistics for every country to the parent
-		if(write(sock,arrayOfStat[i],sizeof(statistics))<0)
-			err("problem in writing");
-	}
-
-	printf("End of sending statistics\n");
 
 	/*---------------------- Recieve requests from server ------------------------------*/ 
 
 	int queries_fd,server_fd;
-	socklen_t workerlen = 0;
 	struct sockaddr_in worker_server;
+	socklen_t workerlen = sizeof(struct sockaddr_in);
 	struct sockaddr *worker_serverptr=(struct sockaddr *) &worker_server;
 
 	if((queries_fd = socket(AF_INET , SOCK_STREAM ,0)) < 0)			/* Create socket */
@@ -312,7 +303,7 @@ int main(int argc, char const *argv[]){
 
 	worker_server.sin_family = AF_INET; 		/* Internet domain */
 	worker_server.sin_addr.s_addr = htonl(INADDR_ANY);
-	worker_server.sin_port = htons(0); 		/* autoselect 0 */
+	worker_server.sin_port = 0; 		/* autoselect 0 */
 	
 	if(bind(queries_fd,worker_serverptr,sizeof(worker_server)) < 0)		/* Bind socket to address */
 		err("Bind");
@@ -321,7 +312,22 @@ int main(int argc, char const *argv[]){
 		err("getsockname");
 
 	printf("My port is %d\n",ntohs(worker_server.sin_port));
+
+	int tempport = ntohs(worker_server.sin_port);
+
+	write(sock,&tempport,sizeof(int));
 		
+	/*--------------------------- Send Statistics -------------------------------------*/ 
+
+	for (int i = 0; i < numOfstat; i++){	// send all statistics for every country to the parent
+		if(write(sock,arrayOfStat[i],sizeof(statistics))<0)
+			err("problem in writing");
+	}
+
+	printf("End of sending statistics\n");
+	
+	/*---------------------------------------------------------------------------------*/ 
+
 	if(listen(queries_fd,5) < 0)		/* Listen for connections */
 		err("Listen");
 	
