@@ -27,6 +27,7 @@ pthread_mutex_t print_mtx;
 
 void * thread_function(void * arg){
 	char * line = (char*) arg;
+	char buff[150];
 
 	pthread_mutex_lock(&mtx);
 
@@ -41,10 +42,12 @@ void * thread_function(void * arg){
 	pthread_mutex_unlock(&mtx);
 
 	write(sock,line,strlen(line)+1);
+	read(sock,buff,sizeof(buff));
 
 	pthread_mutex_lock(&print_mtx);
 
 	printf("%s\n",line );
+	printf("%s\n",buff );
 
 	pthread_mutex_unlock(&print_mtx);
 	/* When threads terminate, they decrement the active thread count */

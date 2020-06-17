@@ -107,7 +107,8 @@ void * thread_function(void * arg){
 
 	if(!strcmp(data.info,"q")){
 		printf("Receive Query\n");
-		char buffer[150];
+		char buff[150];
+		char readbuff[150];
 		int socket_array[numOfWorkers];
 
 		printf("workers: %d\n",numOfWorkers );
@@ -120,6 +121,8 @@ void * thread_function(void * arg){
 			struct in_addr worker_server_addr;
 
 			inet_aton(workersArray[i].IP,&worker_server_addr);
+
+			printf("%s  -  %d\n",workersArray[i].IP,workersArray[i].port );
 
 			if((sock = socket(AF_INET, SOCK_STREAM,0)) < 0)			/* Create socket */
 				err("Socket");
@@ -136,15 +139,20 @@ void * thread_function(void * arg){
 
 			socket_array[i] = sock;
 
-			printf("Connect with worker_server\n");
+			printf("Connect with worker_server in fd %d\n",socket_array[i]);
 		}
 
-		while(read(data.fd,buffer,sizeof(buffer))>0){
+		while(read(data.fd,buff,sizeof(buff))>0){
 			pthread_mutex_lock(&print_mtx);
-			printf("-- %s\n",buffer);
+			printf("-- %s\n",buff);
 			pthread_mutex_unlock(&print_mtx);
 			for (int i = 0; i < numOfWorkers; i++){
-				write(socket_array[i],buffer,strlen(buffer)+1);
+				write(socket_array[i],buff,strlen(buff)+1);
+				read(socket_array[i],readbuff,sizeof(readbuff));
+				pthread_mutex_lock(&print_mtx);
+				printf("++ %s\n",readbuff);
+				pthread_mutex_unlock(&print_mtx);
+				write(data.fd,readbuff,strlen(readbuff)+1);
 			}
 		}
 
@@ -156,10 +164,7 @@ void * thread_function(void * arg){
 
 		read(data.fd,&port,sizeof(int));
 
-		printf("Port:  %d\n",port );
-
 		if(!portExists(workersArray,numOfWorkers,port) && !IPExists(workersArray,numOfWorkers,data.IP)){
-			printf("------\n");
 			workersArray[numOfWorkers].port = port;
 			strcpy(workersArray[numOfWorkers].IP,data.IP); 
 			pthread_mutex_lock(&print_mtx);
@@ -273,6 +278,7 @@ int main(int argc, char const *argv[]){
 	int worker_fd;
 	char IP[32];
 
+
 	while(1){
 		rc = poll(socket_fds,2,-1);	
 		if(rc > 0){
@@ -287,13 +293,10 @@ int main(int argc, char const *argv[]){
 				if((answer_fd = accept(statistics_fd,workerptr,&workerlen)) < 0)	/* accept connection */
 					err("Accept");
 				printf("accept connection with worker\n");
-				// if((rem = gethostbyaddr((char*) &worker.sin_addr.s_addr,sizeof(worker.sin_addr.s_addr),worker.sin_family)) == NULL){
-				// 	err("gethostbyaddr");
-				// }
-				// worker_fd = ntohs(worker.sin_port);
-				// socklen_t len = sizeof(worker.sin_addr.s_addr);	
-				// if(getpeername(answer_fd,(struct sockaddr*)&worker.sin_addr.s_addr,&len)<0)
-				// 	err("getpeername");
+
+				socklen_t len = sizeof(worker);	
+				if(getpeername(answer_fd,(struct sockaddr*)&worker,&len)<0)
+					err("getpeername");
 
 				strcpy(IP ,inet_ntoa(worker.sin_addr));
 

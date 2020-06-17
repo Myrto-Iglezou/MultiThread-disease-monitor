@@ -13,6 +13,7 @@
 #include <sys/socket.h> /* sockets */
 #include <netinet/in.h> /* internet sockets */
 #include <arpa/inet.h>
+#include <poll.h>
 #include <netdb.h> /* ge th os tb ya dd r */
 #include "../include/utils.h"
 #define TRUE 1
@@ -26,6 +27,7 @@ int main(int argc, char const *argv[]){
 	int num,numOfstat=0;
 	DIR * dir;
 	FILE * fp;
+	char* token;
 	struct dirent * dir_info;
 	int n=0,count=0;
 	char path[100];
@@ -42,7 +44,6 @@ int main(int argc, char const *argv[]){
 	int countBytes=0;
 	int numOfFolders=0;
 	int maxFolders=0;
-	char* token;
 	char tempstr[256];
 	HashTable* diseaseHashtable = NULL;
 	HashTable* countryHashtable = NULL;
@@ -311,6 +312,9 @@ int main(int argc, char const *argv[]){
 	if(getsockname(queries_fd,worker_serverptr,&workerlen)<0)
 		err("getsockname");
 
+	if(listen(queries_fd,5) < 0)		/* Listen for connections */
+		err("Listen");
+
 	printf("My port is %d\n",ntohs(worker_server.sin_port));
 
 	int tempport = ntohs(worker_server.sin_port);
@@ -326,231 +330,236 @@ int main(int argc, char const *argv[]){
 
 	printf("End of sending statistics\n");
 	
-	/*---------------------------------------------------------------------------------*/ 
+	/*---------------------------------------------------------------------------------*/
 
-	if(listen(queries_fd,5) < 0)		/* Listen for connections */
-		err("Listen");
-	
-	if((server_fd = accept(queries_fd,NULL,0)) < 0)	/* accept connection */
-		err("Accept");
-	
-	printf("accept connection with server\n");	
-	char readbuffer[256];	
+	int rc;
+	struct pollfd *tempfd;
+	tempfd = calloc(1,sizeof(struct pollfd));
+	tempfd[0].fd = queries_fd;
+	tempfd[0].events = POLLIN;
+	char readbuffer[256];
+	const char s[2] = " ";
 
+	char diseaseCountry[64];
+	char tempbuffer[32];
+
+
+	printf("start poll\n");
+	
 	while(1){
-		while(read(server_fd,readbuffer,sizeof(readbuffer))>0){
-			printf("%s\n",readbuffer );
+		rc = poll(tempfd,1,-1);	
+		if(rc > 0){
+			if((tempfd[0].revents & POLLIN)){	
+				if((server_fd = accept(queries_fd,NULL,0)) < 0)		/* accept connection */
+					err("Accept");
+
+				printf("accept connection with server\n");
+
+				read(server_fd,readbuffer,sizeof(readbuffer));
+				printf("%s\n",readbuffer );
+
+				token = strtok(readbuffer,s);
+				printf("%s\n",token );
+				if(!strcmp(token,"/diseaseFrequency")){ 
+					strcpy(country,"-");
+
+					for (int i = 0; i < 4; i++){		// reacieve all the info from the parent
+
+						if(token!=NULL){
+							token = strtok(NULL,s);
+
+							if(i==0 && token!=NULL)
+								strcpy(disease,token);
+							else if(i==1 && token!=NULL)
+								strcpy(date1,token);
+							else if(i==2 && token!=NULL)
+								strcpy(date2,token);
+							else if(i==3 && token!=NULL)
+								strcpy(country,token);
+						}						
+					}
+
+					count = diseaseFrequency(country,disease,diseaseHashtable,countryHashtable,date1,date2,FALSE,FALSE);	// find the frequency
+					sprintf(tempbuffer,"%d",count);
+					printf("Result : %s\n",tempbuffer );
+					write(server_fd,tempbuffer,strlen(tempbuffer)); 	// send the result 
+
+				}
+					// else if(!strcmp(token,"/topk-AgeRanges")){
+				// 	char k[5];
+				// 	heap* newheap;
+				// 	createHeap(&newheap);	// create the heap
+
+				// 	for (int i = 0; i < 5; i++){		// read the info
+
+				// 		if(read(rfd,&message_size,sizeof(int))<0)
+				// 			err("Problem in reading bytes.");
+
+				// 		tempbuffer = malloc((message_size+1)*sizeof(char));
+				// 		strcpy(tempbuffer,"");
+				// 		readBytes(rfd,tempbuffer,bufferSize,message_size);
+
+				// 		if(i==0)
+				// 			strcpy(k,tempbuffer);
+				// 		else if(i==1)
+				// 			strcpy(country,tempbuffer);
+				// 		else if(i==2)
+				// 			strcpy(disease,tempbuffer);
+				// 		else if(i==3)
+				// 			strcpy(date1,tempbuffer);
+				// 		else if(i==4)
+				// 			strcpy(date2,tempbuffer);
+				// 		free(tempbuffer);
+
+				// 	}
+
+				// 	int countRanges[4];
+				// 	int total = 0;
+				// 	float per = 0.0;
+				// 	tempbuffer = malloc(32*sizeof(char));
+				// 	int max;
+				// 	char data[10];
+
+				// 	for (int i = 0; i < 4; i++){		// find the num of cases of every range
+				// 		countRanges[i] = findRange(country,disease,diseaseHashtable,countryHashtable,date1,date2,i);
+				// 		sprintf(tempbuffer,"%d",i);
+				// 		insertToHeap(countRanges[i],tempbuffer,newheap);
+				// 		total += countRanges[i] ;
+				// 	}
+
+				// 	if(total<0){
+				// 		strcpy(tempbuffer,"-1");
+				// 		writeBytes(tempbuffer,wfd,bufferSize);
+				// 	}else{
+				// 		strcpy(tempbuffer,"1");
+				// 		writeBytes(tempbuffer,wfd,bufferSize);
+				// 		if(atoi(k)>4)			// if the number requested is greater than the number of the ranges
+				// 			strcpy(k,"4");
+
+				// 		for(int i=0;i<atoi(k);i++){
+				// 			getTheMax(data,&max,newheap);		// find the max of the heap
+				// 			per = (float) ((float) countRanges[atoi(data)] / (float) total);		// find the percentage
+				// 			sprintf(tempbuffer,"%lf",per);
+				// 			writeBytes(data,wfd,bufferSize);		// send the range
+				// 			writeBytes(tempbuffer,wfd,bufferSize);	// send the percentage
+				// 		}
+				// 	}
+					
+				// 	DeleteHeap(newheap,newheap->root);
+				// 	free(newheap);
+				// 	free(tempbuffer);
+					
+				// }else if(!strcmp(token,"/searchPatientRecord")){
+				// 	if(read(rfd,&message_size,sizeof(int))<0)
+				// 			err("Problem in reading bytes");
+
+				// 	tempbuffer = malloc((message_size+1)*sizeof(char));
+				// 	strcpy(tempbuffer,"");
+				// 	readBytes(rfd,tempbuffer,bufferSize,message_size);	// read the id of the Record
+				// 	strcpy(patientFirstName,"-");
+				// 	strcpy(patientLastName,"-");
+				// 	strcpy(disease,"-");
+				// 	strcpy(country,"-");
+				// 	strcpy(date1,"-");
+				// 	strcpy(date2,"-");
+				// 	strcpy(age,"0");
+				// 	pat =  createPatient(tempbuffer,patientFirstName,patientLastName,disease,country,date1,date2,atoi(age));		// create a temporary patient to check the tree
+				// 	tempNode = FindData(root,pat,ComparePatientsID);	
+				// 	deletePatient(pat);		
+				// 	if(tempNode!=guard){		// if it found it send 1 and alla the info of the record
+				// 		pat = (Patient*) tempNode->data;
+				// 		strcpy(tempbuffer,"1");
+				// 		writeBytes(tempbuffer,wfd,bufferSize);
+				// 		writeBytes(pat->firstName,wfd,bufferSize);
+				// 		writeBytes(pat->lastName,wfd,bufferSize);
+				// 		sprintf(buffer,"%d",pat->age);
+				// 		writeBytes(buffer,wfd,bufferSize);
+				// 		writeBytes(pat->disease,wfd,bufferSize);
+				// 		writeBytes(pat->country,wfd,bufferSize);
+				// 		writeBytes(pat->entryDate,wfd,bufferSize);
+				// 		writeBytes(pat->exitDate,wfd,bufferSize);
+						
+				// 	}else{		// if i didn't find it send 0; 
+				// 		strcpy(tempbuffer,"0");
+				// 		writeBytes(tempbuffer,wfd,bufferSize);
+						
+				// 	}
+				// 	free(tempbuffer);
+				// }else if(!strcmp(token,"/numPatientAdmissions")){ 
+				// 	for (int i = 0; i < 4; i++){
+
+				// 		if(read(rfd,&message_size,sizeof(int))<0)
+				// 			err("Problem in reading bytes");
+
+				// 		tempbuffer = malloc((message_size+1)*sizeof(char));
+				// 		strcpy(tempbuffer,"");
+				// 		readBytes(rfd,tempbuffer,bufferSize,message_size);
+
+				// 		if(i==0)
+				// 			strcpy(disease,tempbuffer);
+				// 		else if(i==1)
+				// 			strcpy(date1,tempbuffer);
+				// 		else if(i==2)
+				// 			strcpy(date2,tempbuffer);
+				// 		else if(i==3)
+				// 			strcpy(country,tempbuffer);
+				// 		free(tempbuffer);
+				// 	}
+				// 	if(!strcmp(country,"-")){
+				// 		for (int i = 0; i < maxFolders; i++){
+				// 			writeBytes(countries[i],wfd,bufferSize);
+				// 			count = diseaseFrequency(countries[i],disease,diseaseHashtable,countryHashtable,date1,date2,TRUE,FALSE); // find the frequency of the admisions
+				// 			sprintf(buffer,"%d",count);
+
+				// 			writeBytes(buffer,wfd,bufferSize);	// send the result
 			
+				// 		}
+				// 	}else{
+				// 		count = diseaseFrequency(country,disease,diseaseHashtable,countryHashtable,date1,date2,TRUE,FALSE);
+				// 		sprintf(buffer,"%d",count);
+
+				// 		writeBytes(buffer,wfd,bufferSize);				
+				// 	}
+				// }else if(!strcmp(token,"/numPatientDischarges")){ 
+				// 	for (int i = 0; i < 4; i++){
+
+				// 		if(read(rfd,&message_size,sizeof(int))<0)
+				// 			err("Problem in reading bytes");
+
+				// 		tempbuffer = malloc((message_size+1)*sizeof(char));
+				// 		strcpy(tempbuffer,"");
+				// 		readBytes(rfd,tempbuffer,bufferSize,message_size);
+
+				// 		if(i==0)
+				// 			strcpy(disease,tempbuffer);
+				// 		else if(i==1)
+				// 			strcpy(date1,tempbuffer);
+				// 		else if(i==2)
+				// 			strcpy(date2,tempbuffer);
+				// 		else if(i==3)
+				// 			strcpy(country,tempbuffer);
+				// 		free(tempbuffer);
+				// 	}
+				// 	if(!strcmp(country,"-")){
+				// 		for (int i = 0; i < maxFolders; i++){
+				// 			writeBytes(countries[i],wfd,bufferSize);
+				// 			count = diseaseFrequency(countries[i],disease,diseaseHashtable,countryHashtable,date1,date2,FALSE,TRUE);  // find the frequency of the dicharges
+				// 			sprintf(buffer,"%d",count);
+
+				// 			writeBytes(buffer,wfd,bufferSize);		// send result
+
+										
+				// 		}
+				// 	}else{
+				// 		count = diseaseFrequency(country,disease,diseaseHashtable,countryHashtable,date1,date2,FALSE,TRUE);
+				// 		sprintf(buffer,"%d",count);
+
+				// 		writeBytes(buffer,wfd,bufferSize);
+				// 	}
+				// }				
+			}
 		}
 	}
-	// char diseaseCountry[64];
-	// char* tempbuffer;
-
-	// while(1){
-
-	// 	buffer = malloc((message_size+1)*sizeof(char));
-	// 	strcpy(buffer,"");
-	// 	readBytes(rfd,buffer,bufferSize,message_size);
-
-	// 	if(!strcmp(buffer,"/diseaseFrequency")){ 
-	// 		for (int i = 0; i < 4; i++){		// reacieve all the info from the parent
-
-	// 			if(read(rfd,&message_size,sizeof(int))<0)
-	// 				err("Problem in reading bytes");
-
-	// 			tempbuffer = malloc((message_size+1)*sizeof(char));
-	// 			strcpy(tempbuffer,"");
-	// 			readBytes(rfd,tempbuffer,bufferSize,message_size);
-
-	// 			if(i==0)
-	// 				strcpy(disease,tempbuffer);
-	// 			else if(i==1)
-	// 				strcpy(date1,tempbuffer);
-	// 			else if(i==2)
-	// 				strcpy(date2,tempbuffer);
-	// 			else if(i==3)
-	// 				strcpy(country,tempbuffer);
-	// 			free(tempbuffer);
-	// 		}
-
-	// 		count = diseaseFrequency(country,disease,diseaseHashtable,countryHashtable,date1,date2,FALSE,FALSE);	// find the frequency
-	// 		sprintf(buffer,"%d",count);
-
-	// 		writeBytes(buffer,wfd,bufferSize);		// send the result  
-	// 	}else if(!strcmp(buffer,"/topk-AgeRanges")){
-	// 		char k[5];
-	// 		heap* newheap;
-	// 		createHeap(&newheap);	// create the heap
-
-	// 		for (int i = 0; i < 5; i++){		// read the info
-
-	// 			if(read(rfd,&message_size,sizeof(int))<0)
-	// 				err("Problem in reading bytes.");
-
-	// 			tempbuffer = malloc((message_size+1)*sizeof(char));
-	// 			strcpy(tempbuffer,"");
-	// 			readBytes(rfd,tempbuffer,bufferSize,message_size);
-
-	// 			if(i==0)
-	// 				strcpy(k,tempbuffer);
-	// 			else if(i==1)
-	// 				strcpy(country,tempbuffer);
-	// 			else if(i==2)
-	// 				strcpy(disease,tempbuffer);
-	// 			else if(i==3)
-	// 				strcpy(date1,tempbuffer);
-	// 			else if(i==4)
-	// 				strcpy(date2,tempbuffer);
-	// 			free(tempbuffer);
-
-	// 		}
-
-	// 		int countRanges[4];
-	// 		int total = 0;
-	// 		float per = 0.0;
-	// 		tempbuffer = malloc(32*sizeof(char));
-	// 		int max;
-	// 		char data[10];
-
-	// 		for (int i = 0; i < 4; i++){		// find the num of cases of every range
-	// 			countRanges[i] = findRange(country,disease,diseaseHashtable,countryHashtable,date1,date2,i);
-	// 			sprintf(tempbuffer,"%d",i);
-	// 			insertToHeap(countRanges[i],tempbuffer,newheap);
-	// 			total += countRanges[i] ;
-	// 		}
-
-	// 		if(total<0){
-	// 			strcpy(tempbuffer,"-1");
-	// 			writeBytes(tempbuffer,wfd,bufferSize);
-	// 		}else{
-	// 			strcpy(tempbuffer,"1");
-	// 			writeBytes(tempbuffer,wfd,bufferSize);
-	// 			if(atoi(k)>4)			// if the number requested is greater than the number of the ranges
-	// 				strcpy(k,"4");
-
-	// 			for(int i=0;i<atoi(k);i++){
-	// 				getTheMax(data,&max,newheap);		// find the max of the heap
-	// 				per = (float) ((float) countRanges[atoi(data)] / (float) total);		// find the percentage
-	// 				sprintf(tempbuffer,"%lf",per);
-	// 				writeBytes(data,wfd,bufferSize);		// send the range
-	// 				writeBytes(tempbuffer,wfd,bufferSize);	// send the percentage
-	// 			}
-	// 		}
-			
-	// 		DeleteHeap(newheap,newheap->root);
-	// 		free(newheap);
-	// 		free(tempbuffer);
-			
-	// 	}else if(!strcmp(buffer,"/searchPatientRecord")){
-	// 		if(read(rfd,&message_size,sizeof(int))<0)
-	// 				err("Problem in reading bytes");
-
-	// 		tempbuffer = malloc((message_size+1)*sizeof(char));
-	// 		strcpy(tempbuffer,"");
-	// 		readBytes(rfd,tempbuffer,bufferSize,message_size);	// read the id of the Record
-	// 		strcpy(patientFirstName,"-");
-	// 		strcpy(patientLastName,"-");
-	// 		strcpy(disease,"-");
-	// 		strcpy(country,"-");
-	// 		strcpy(date1,"-");
-	// 		strcpy(date2,"-");
-	// 		strcpy(age,"0");
-	// 		pat =  createPatient(tempbuffer,patientFirstName,patientLastName,disease,country,date1,date2,atoi(age));		// create a temporary patient to check the tree
-	// 		tempNode = FindData(root,pat,ComparePatientsID);	
-	// 		deletePatient(pat);		
-	// 		if(tempNode!=guard){		// if it found it send 1 and alla the info of the record
-	// 			pat = (Patient*) tempNode->data;
-	// 			strcpy(tempbuffer,"1");
-	// 			writeBytes(tempbuffer,wfd,bufferSize);
-	// 			writeBytes(pat->firstName,wfd,bufferSize);
-	// 			writeBytes(pat->lastName,wfd,bufferSize);
-	// 			sprintf(buffer,"%d",pat->age);
-	// 			writeBytes(buffer,wfd,bufferSize);
-	// 			writeBytes(pat->disease,wfd,bufferSize);
-	// 			writeBytes(pat->country,wfd,bufferSize);
-	// 			writeBytes(pat->entryDate,wfd,bufferSize);
-	// 			writeBytes(pat->exitDate,wfd,bufferSize);
-				
-	// 		}else{		// if i didn't find it send 0; 
-	// 			strcpy(tempbuffer,"0");
-	// 			writeBytes(tempbuffer,wfd,bufferSize);
-				
-	// 		}
-	// 		free(tempbuffer);
-	// 	}else if(!strcmp(buffer,"/numPatientAdmissions")){ 
-	// 		for (int i = 0; i < 4; i++){
-
-	// 			if(read(rfd,&message_size,sizeof(int))<0)
-	// 				err("Problem in reading bytes");
-
-	// 			tempbuffer = malloc((message_size+1)*sizeof(char));
-	// 			strcpy(tempbuffer,"");
-	// 			readBytes(rfd,tempbuffer,bufferSize,message_size);
-
-	// 			if(i==0)
-	// 				strcpy(disease,tempbuffer);
-	// 			else if(i==1)
-	// 				strcpy(date1,tempbuffer);
-	// 			else if(i==2)
-	// 				strcpy(date2,tempbuffer);
-	// 			else if(i==3)
-	// 				strcpy(country,tempbuffer);
-	// 			free(tempbuffer);
-	// 		}
-	// 		if(!strcmp(country,"-")){
-	// 			for (int i = 0; i < maxFolders; i++){
-	// 				writeBytes(countries[i],wfd,bufferSize);
-	// 				count = diseaseFrequency(countries[i],disease,diseaseHashtable,countryHashtable,date1,date2,TRUE,FALSE); // find the frequency of the admisions
-	// 				sprintf(buffer,"%d",count);
-
-	// 				writeBytes(buffer,wfd,bufferSize);	// send the result
-	
-	// 			}
-	// 		}else{
-	// 			count = diseaseFrequency(country,disease,diseaseHashtable,countryHashtable,date1,date2,TRUE,FALSE);
-	// 			sprintf(buffer,"%d",count);
-
-	// 			writeBytes(buffer,wfd,bufferSize);				
-	// 		}
-	// 	}else if(!strcmp(buffer,"/numPatientDischarges")){ 
-	// 		for (int i = 0; i < 4; i++){
-
-	// 			if(read(rfd,&message_size,sizeof(int))<0)
-	// 				err("Problem in reading bytes");
-
-	// 			tempbuffer = malloc((message_size+1)*sizeof(char));
-	// 			strcpy(tempbuffer,"");
-	// 			readBytes(rfd,tempbuffer,bufferSize,message_size);
-
-	// 			if(i==0)
-	// 				strcpy(disease,tempbuffer);
-	// 			else if(i==1)
-	// 				strcpy(date1,tempbuffer);
-	// 			else if(i==2)
-	// 				strcpy(date2,tempbuffer);
-	// 			else if(i==3)
-	// 				strcpy(country,tempbuffer);
-	// 			free(tempbuffer);
-	// 		}
-	// 		if(!strcmp(country,"-")){
-	// 			for (int i = 0; i < maxFolders; i++){
-	// 				writeBytes(countries[i],wfd,bufferSize);
-	// 				count = diseaseFrequency(countries[i],disease,diseaseHashtable,countryHashtable,date1,date2,FALSE,TRUE);  // find the frequency of the dicharges
-	// 				sprintf(buffer,"%d",count);
-
-	// 				writeBytes(buffer,wfd,bufferSize);		// send result
-
-								
-	// 			}
-	// 		}else{
-	// 			count = diseaseFrequency(country,disease,diseaseHashtable,countryHashtable,date1,date2,FALSE,TRUE);
-	// 			sprintf(buffer,"%d",count);
-
-	// 			writeBytes(buffer,wfd,bufferSize);
-	// 		}
-	// 	}
-	// 	free(buffer);
-	// }
 
 	for (int i = 0; i < numOfstat; i++){
 		free(arrayOfStat[i]);
