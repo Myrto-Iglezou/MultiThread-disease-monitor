@@ -93,7 +93,7 @@ void sendStat(char* data,int bufferSize,int wfd){
 		size = message_size + 1;
 
 	if(write(wfd,&message_size,sizeof(int))<0)
-		printf("Problem in writing");
+		fprintf(stdout,"Problem in writing");
 
 	while(count < message_size){
 		
@@ -128,24 +128,24 @@ void searchTree(Treenode* root,statistics** stat){		// find the ranges in the tr
 }
 
 void printStat(statistics * stat){
-	printf("\n%s\n",stat->date);
-	printf("%s\n",stat->country);
-	printf("%s\n",stat->disease );
+	fprintf(stdout,"\n%s\n",stat->date);
+	fprintf(stdout,"%s\n",stat->country);
+	fprintf(stdout,"%s\n",stat->disease );
 	for (int i = 0; i < 4; i++){
 		switch(i){
 			case 0:
-				printf("Age range 0-20 years: ");
+				fprintf(stdout,"Age range 0-20 years: ");
 				break;
 			case 1:
-				printf("Age range 21-40 years: ");	
+				fprintf(stdout,"Age range 21-40 years: ");	
 				break;
 			case 2:
-				printf("Age range 41-60 years: ");
+				fprintf(stdout,"Age range 41-60 years: ");
 				break;
 			case 3: 
-				printf("Age range 60+ years: ");
+				fprintf(stdout,"Age range 60+ years: ");
 		}
-		printf("%d cases\n",stat->ranges[i]);
+		fprintf(stdout,"%d cases\n",stat->ranges[i]);
 	}
 }
 

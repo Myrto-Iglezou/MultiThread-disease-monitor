@@ -27,7 +27,14 @@ pthread_mutex_t print_mtx;
 
 void * thread_function(void * arg){
 	char * line = (char*) arg;
-	char buff[150];
+	char buff[256];
+	char s[2] = "$";
+	char tempbuffer[150];
+	char temp[100];
+	char* token;
+	char* tok;
+	strcpy(tempbuffer,line);
+	strcpy(temp,line);
 
 	pthread_mutex_lock(&mtx);
 
@@ -41,15 +48,91 @@ void * thread_function(void * arg){
     }
 	pthread_mutex_unlock(&mtx);
 
-	write(sock,line,strlen(line)+1);
-	read(sock,buff,sizeof(buff));
+	if(write(sock,line,strlen(line)+1)<0)
+		err("write");
 
-	pthread_mutex_lock(&print_mtx);
+	if(read(sock,buff,sizeof(buff))<0)
+		err("read");
 
-	printf("%s\n",line );
-	printf("%s\n",buff );
+	flockfile(stdout);
 
-	pthread_mutex_unlock(&print_mtx);
+	token = strtok(temp," ");
+	if(!strcmp(token,"/topk-AgeRanges")){
+		fprintf(stdout,"\033[1;36mREQUEST:  \033[0m%s\n",tempbuffer );
+		fflush(stdout);
+		token = strtok(NULL," ");
+		if(atoi(token)>4)			// if the number requested is greater than the number of the ranges
+			strcpy(token,"4");
+		tok = strtok(buff,s);
+		if(!strcmp(tok,"-1")){
+			fprintf(stdout,"\033[1;36mRESULT: \033[0mAn error has occured\n");
+			fflush(stdout);	
+		}else if(!strcmp(tok,"1")){
+			fprintf(stdout,"\033[1;36mRESULT:  \033[0m\n");
+			fflush(stdout);
+
+			for(int i=0 ; i<2*atoi(token) ; i++){
+				tok = strtok(NULL,s);
+				if(!strcmp(tok,"0"))
+					fprintf(stdout,"0-20: ");
+				else if(!strcmp(tok,"1"))
+					fprintf(stdout,"21-40: ");
+				else if(!strcmp(tok,"2"))
+					fprintf(stdout,"41-60: ");
+				else if(!strcmp(tok,"3"))
+					fprintf(stdout,"60+: ");
+				else if(tok!=NULL)
+					fprintf(stdout, "%s\n",tok);
+			}
+		}
+	}else if(!strcmp(token,"/searchPatientRecord")){
+		fprintf(stdout,"\033[1;36mREQUEST:  \033[0m%s\n",tempbuffer );
+		tok = strtok(buff,s);	
+		if(!strcmp(tok,"0")){
+			fprintf(stdout,"\033[1;36mRESULT: \033[0m No record with this id\n");
+			fflush(stdout);	
+		}else{
+			fprintf(stdout,"\033[1;36mRESULT:  \033[0m");	
+			fflush(stdout);	
+			tok = strtok(NULL,s);
+			while(tok!=NULL){
+				fprintf(stdout,"%s ",tok);
+				fflush(stdout);	
+				tok = strtok(NULL,s);
+			}
+			fprintf(stdout,"\n");
+		}
+	}else if(!strcmp(token,"/numPatientAdmissions") || !strcmp(token,"/numPatientDischarges")){
+		fprintf(stdout,"\033[1;36mREQUEST:  \033[0m%s\n",tempbuffer );
+		tok = strtok(buff,s);	
+		if(!strcmp(tok,"-")){
+			fprintf(stdout,"\033[1;36mRESULT:  \033[0m\n");	
+			fflush(stdout);	
+			tok = strtok(NULL,s);
+			while(tok!=NULL){
+				fprintf(stdout,"%s ",tok);
+				fflush(stdout);	
+				tok = strtok(NULL,s);
+				fprintf(stdout,"%s \n",tok);
+				fflush(stdout);	
+				tok = strtok(NULL,s);
+			}
+		}else{
+			fprintf(stdout,"\033[1;36mRESULT:  \033[0m%s\n",tok);
+			fflush(stdout);
+		}
+
+	}else{
+
+		fprintf(stdout,"\033[1;36mREQUEST:  \033[0m%s\n",tempbuffer );
+		fflush(stdout);
+
+		fprintf(stdout,"\033[1;36mRESULT:  \033[0m%s\n",buff );
+		fflush(stdout);
+	}
+
+	funlockfile(stdout);
+
 	/* When threads terminate, they decrement the active thread count */
 	pthread_mutex_lock(&mtx);
 	activeThreads--;

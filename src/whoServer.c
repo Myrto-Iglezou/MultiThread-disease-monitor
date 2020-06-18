@@ -81,106 +81,170 @@ void addFd(buffer_t* buffer,int fd,char* info,char* IP,int bufferSize){
 	buffer->data[buffer->end].fd = fd;
 	strcpy(buffer->data[buffer->end].info, info);
 	strcpy(buffer->data[buffer->end].IP, IP);
-	buffer->count++;
+	(buffer->count)++;
 	pthread_mutex_unlock(&mtx);
 }
 
-fd_info returnFdInfo(buffer_t* buffer,int bufferSize){
-	fd_info data;
+fd_info* returnFdInfo(buffer_t* buffer,int bufferSize){
+	fd_info* data = malloc(sizeof(fd_info));
 	pthread_mutex_lock(&mtx);
 	while(buffer->count <= 0){
 		pthread_cond_wait(&cond_nonempty, &mtx);
 	}
-	data = buffer->data[buffer->start];
+	data->fd = buffer->data[buffer->start].fd;
+	strcpy(data->info,buffer->data[buffer->start].info);
+	strcpy(data->IP,buffer->data[buffer->start].IP);
 	buffer->start = (buffer->start+1)%bufferSize;
-	buffer->count--;
+	(buffer->count)--;
 	pthread_mutex_unlock(&mtx);
 	return data;
 }
 
 void * thread_function(void * arg){
-	fd_info data;
-	int bufferSize = *(int*) arg; 
-	printf("I'm thread\n");
-	data = returnFdInfo(&buffer,bufferSize);
-	pthread_cond_signal(&cond_nonfull);
 
-	if(!strcmp(data.info,"q")){
-		printf("Receive Query\n");
-		char buff[150];
-		char readbuff[150];
-		int socket_array[numOfWorkers];
+	while(1){
+		fd_info* data;
+		int bufferSize = *(int*) arg; 
 
-		printf("workers: %d\n",numOfWorkers );
+		data = returnFdInfo(&buffer,bufferSize);
+		pthread_cond_signal(&cond_nonfull);
 
-		for (int i = 0; i < numOfWorkers; i++){
-			int sock;
-			struct hostent *rem;
-			struct sockaddr_in worker_server;
-			struct sockaddr * worker_serverptr = (struct sockaddr *) &worker_server;
-			struct in_addr worker_server_addr;
+		if(!strcmp(data->info,"q")){
+			fprintf(stdout,"Receive Query\n");
+			char buff[150];
+			char readbuff[150];
+			int socket_array[numOfWorkers];
+			char* command;
 
-			inet_aton(workersArray[i].IP,&worker_server_addr);
+			fprintf(stdout,"workers: %d\n",numOfWorkers );
 
-			printf("%s  -  %d\n",workersArray[i].IP,workersArray[i].port );
-
-			if((sock = socket(AF_INET, SOCK_STREAM,0)) < 0)			/* Create socket */
-				err("Socket");
-
-			if((rem = gethostbyaddr((const char*)&worker_server_addr,sizeof(worker_server_addr),AF_INET)) == NULL)		/* Find worker_server address */
-				err("gethostbyaddr");
-			
-			worker_server.sin_family = AF_INET;		 /* Internet domain */
-			memcpy(&worker_server.sin_addr,rem->h_addr,rem->h_length);
-			worker_server.sin_port = htons(workersArray[i].port);	 /* worker_Server port */
-
-			if(connect(sock,worker_serverptr,sizeof(worker_server)) < 0)
-				err("Connect");
-
-			socket_array[i] = sock;
-
-			printf("Connect with worker_server in fd %d\n",socket_array[i]);
-		}
-
-		while(read(data.fd,buff,sizeof(buff))>0){
-			pthread_mutex_lock(&print_mtx);
-			printf("-- %s\n",buff);
-			pthread_mutex_unlock(&print_mtx);
 			for (int i = 0; i < numOfWorkers; i++){
-				write(socket_array[i],buff,strlen(buff)+1);
-				read(socket_array[i],readbuff,sizeof(readbuff));
-				pthread_mutex_lock(&print_mtx);
-				printf("++ %s\n",readbuff);
-				pthread_mutex_unlock(&print_mtx);
-				write(data.fd,readbuff,strlen(readbuff)+1);
+				int sock;
+				struct hostent *rem;
+				struct sockaddr_in worker_server;
+				struct sockaddr * worker_serverptr = (struct sockaddr *) &worker_server;
+				struct in_addr worker_server_addr;
+
+				inet_aton(workersArray[i].IP,&worker_server_addr);
+
+				fprintf(stdout,"%s  -  %d\n",workersArray[i].IP,workersArray[i].port );
+
+				if((sock = socket(AF_INET, SOCK_STREAM,0)) < 0)			/* Create socket */
+					err("Socket");
+
+				if((rem = gethostbyaddr((const char*)&worker_server_addr,sizeof(worker_server_addr),AF_INET)) == NULL)		/* Find worker_server address */
+					err("gethostbyaddr");
+				
+				worker_server.sin_family = AF_INET;			 /* Internet domain */
+				memcpy(&worker_server.sin_addr,rem->h_addr,rem->h_length);
+				worker_server.sin_port = htons(workersArray[i].port);	 /* worker_Server port */
+
+				if(connect(sock,worker_serverptr,sizeof(worker_server)) < 0)
+					err("Connect");
+
+				socket_array[i] = sock;
+
+				fprintf(stdout,"Connect with worker_server in fd %d\n",socket_array[i]);
 			}
-		}
 
-	}else if(!strcmp(data.info,"s")){
-		/*  Receive Statistics */ 
-		printf("Receive Statistics\n");
-		statistics* stat = calloc(1,sizeof(statistics));
-		int port;
+			if(read(data->fd,buff,sizeof(buff))<0)
+				err("read");
 
-		read(data.fd,&port,sizeof(int));
+			strcpy(readbuff,buff);
+			command = strtok(readbuff," ");
+			char* tok;
+			int flag;
 
-		if(!portExists(workersArray,numOfWorkers,port) && !IPExists(workersArray,numOfWorkers,data.IP)){
-			workersArray[numOfWorkers].port = port;
-			strcpy(workersArray[numOfWorkers].IP,data.IP); 
-			pthread_mutex_lock(&print_mtx);
-			numOfWorkers++;
-			pthread_mutex_unlock(&print_mtx);
-		}
-		
-		while(read(data.fd,stat,sizeof(statistics))>0){		
-			pthread_mutex_lock(&print_mtx);
-			printStat(stat);
-			pthread_mutex_unlock(&print_mtx);
-		}
-		
+			for (int i = 0; i < numOfWorkers; i++){
+				if(write(socket_array[i],buff,strlen(buff)+1)<0)
+					err("write");
+			}
+			
+			if(!strcmp(command,"/diseaseFrequency")){
+				int total=0;
+				for (int i = 0; i < numOfWorkers; i++){
+					if(read(socket_array[i],readbuff,sizeof(readbuff))<0)
+						err("read");
+					if(atoi(readbuff)!=-1)
+						total+=atoi(readbuff);	
+				}
+				sprintf(readbuff,"%d",total);
+				if(write(data->fd,readbuff,strlen(readbuff)+1)<0)
+					err("write");					
+			}else if(!strcmp(command,"/topk-AgeRanges")){
+				flag = FALSE;
+				for (int i = 0; i < numOfWorkers; i++){
+					if(read(socket_array[i],readbuff,sizeof(readbuff))<0)
+						err("read");
+					tok = strtok(readbuff,"$");
+					if(!strcmp(tok,"1")){
+						flag = TRUE;
+						if(write(data->fd,readbuff,strlen(readbuff)+1)<0)
+							err("write");
+					}
+				}
+				if(!flag){
+					strcpy(readbuff,"-1");
+					strcat(readbuff,"$");
+					if(write(data->fd,readbuff,strlen(readbuff)+1)<0)
+						err("write");
+				}
+			}else if(!strcmp(command,"/searchPatientRecord")){
+				flag = FALSE;
+				for (int i = 0; i < numOfWorkers; i++){
+					if(read(socket_array[i],readbuff,sizeof(readbuff))<0)
+						err("read");
+					tok = strtok(readbuff,"$");
+					if(!strcmp(tok,"1")){
+						flag = TRUE;
+						if(write(data->fd,readbuff,strlen(readbuff)+1)<0)
+							err("write");
+					}
+				}
+				if(!flag){
+					strcpy(readbuff,"0");
+					strcat(readbuff,"$");
+					if(write(data->fd,readbuff,strlen(readbuff)+1)<0)
+						err("write");
+				}
 
-	}else
-		err("problem with fd info");
+			}else{
+				for (int i = 0; i < numOfWorkers; i++){				
+					if(read(socket_array[i],readbuff,sizeof(readbuff))<0)
+						err("read");
+
+					if(write(data->fd,readbuff,strlen(readbuff)+1)<0)
+						err("write");
+				}
+			}
+
+		}else if(!strcmp(data->info,"s")){
+			/*  Receive Statistics */ 
+			statistics* stat = calloc(1,sizeof(statistics));
+			int port;
+
+			read(data->fd,&port,sizeof(int));
+
+			if(!portExists(workersArray,numOfWorkers,port)){
+				workersArray[numOfWorkers].port = port;
+				strcpy(workersArray[numOfWorkers].IP,data->IP); 
+				pthread_mutex_lock(&print_mtx);
+				numOfWorkers++;
+				pthread_mutex_unlock(&print_mtx);
+			}
+			
+			flockfile(stdout);
+			while(read(data->fd,stat,sizeof(statistics))>0){			
+				// printStat(stat);		
+			}
+			fprintf(stdout,"Receive Statistics\n");		
+			funlockfile(stdout);
+
+		}else
+			err("problem with fd info");
+		free(data);
+	}
+	pthread_exit(NULL);
 }
 
 int main(int argc, char const *argv[]){
