@@ -364,6 +364,7 @@ int main(int argc, char const *argv[]){
 				if(!strcmp(token,"/diseaseFrequency")){ 
 					strcpy(country,"-");
 					char tempbuffer[32];
+					char readbuffer[150];
 
 					for (int i = 0; i < 4; i++){		// reacieve all the info from the parent
 
@@ -382,9 +383,17 @@ int main(int argc, char const *argv[]){
 					}
 
 					count = diseaseFrequency(country,disease,diseaseHashtable,countryHashtable,date1,date2,FALSE,FALSE);	// find the frequency
-
 					sprintf(tempbuffer,"%d",count);
-					write(server_fd,tempbuffer,strlen(tempbuffer)+1); 	// send the result 
+					if(count<0){
+						strcpy(readbuffer,"-1");
+						strcat(readbuffer,"$");
+						write(server_fd,readbuffer,strlen(readbuffer)+1); 
+					}else{
+						strcpy(readbuffer,"1");
+						strcat(readbuffer,"$");
+						strcat(readbuffer,tempbuffer);
+						write(server_fd,readbuffer,strlen(readbuffer)+1); 	// send the result
+					}	
 
 				}else if(!strcmp(token,"/topk-AgeRanges")){
 					char k[5];
@@ -414,7 +423,7 @@ int main(int argc, char const *argv[]){
 					float per = 0.0;
 					int max;
 					char data[10];
-					strcpy(readbuffer,"");
+					char readbuffer[256];
 
 					for (int i = 0; i < 4; i++){		// find the num of cases of every range
 						countRanges[i] = findRange(country,disease,diseaseHashtable,countryHashtable,date1,date2,i);
@@ -426,7 +435,7 @@ int main(int argc, char const *argv[]){
 					if(total<0){
 						strcpy(readbuffer,"-1");
 						strcat(readbuffer,"$");
-						write(server_fd,readbuffer,strlen(readbuffer)); 
+						write(server_fd,readbuffer,strlen(readbuffer)+1); 
 					}else{
 						strcpy(readbuffer,"1");
 						strcat(readbuffer,"$");
@@ -449,7 +458,7 @@ int main(int argc, char const *argv[]){
 							strcat(readbuffer,tempbuffer);
 							strcat(readbuffer,"$");
 						}
-						write(server_fd,readbuffer,strlen(readbuffer)); 
+						write(server_fd,readbuffer,strlen(readbuffer)+1); 
 					}
 					
 					DeleteHeap(newheap,newheap->root);
@@ -489,15 +498,16 @@ int main(int argc, char const *argv[]){
 						strcat(readbuffer,"$");
 						strcat(readbuffer,pat->exitDate);
 						strcat(readbuffer,"$");
-						write(server_fd,readbuffer,strlen(readbuffer)); 
+						write(server_fd,readbuffer,strlen(readbuffer)+1); 
 				
 					}else{		// if i didn't find it send 0; 
 						strcpy(readbuffer,"0");
 						strcat(readbuffer,"$");
-						write(server_fd,readbuffer,strlen(readbuffer)); 						
+						write(server_fd,readbuffer,strlen(readbuffer)+1); 						
 					}
 				}else if(!strcmp(token,"/numPatientAdmissions")){ 
 					strcpy(country,"-");
+					char temp[150];
 					for (int i = 0; i < 4; i++){
 						
 						if(token!=NULL){
@@ -513,26 +523,37 @@ int main(int argc, char const *argv[]){
 								strcpy(country,token);
 						}	
 					}
+					char readbuffer[100];
 					if(!strcmp(country,"-")){
-						strcpy(readbuffer,"-");
-						strcat(readbuffer,"$");
+						strcpy(readbuffer,"");
+						// strcat(readbuffer,"$");
 						for (int i = 0; i < maxFolders; i++){
 							strcat(readbuffer,countries[i]);
 							strcat(readbuffer,"$");
 							count = diseaseFrequency(countries[i],disease,diseaseHashtable,countryHashtable,date1,date2,TRUE,FALSE); // find the frequency of the admisions
 							sprintf(tempbuffer,"%d",count);
 							strcat(readbuffer,tempbuffer);
+							strcat(readbuffer,"$");
 						}
-
-						write(server_fd,readbuffer,strlen(readbuffer)); 	// send the result
-
+						write(server_fd,readbuffer,strlen(readbuffer)+1); 	// send the result
 					}else{
+						
 						count = diseaseFrequency(country,disease,diseaseHashtable,countryHashtable,date1,date2,TRUE,FALSE);
 						sprintf(tempbuffer,"%d",count);
-						write(server_fd,tempbuffer,strlen(tempbuffer)); 	// send the result 				
+						if(count<0){
+							strcpy(readbuffer,"-1");
+							strcat(readbuffer,"$");
+							write(server_fd,readbuffer,strlen(readbuffer)+1); 
+						}else{
+							strcpy(readbuffer,"1");
+							strcat(readbuffer,"$");
+							strcat(readbuffer,tempbuffer);
+							write(server_fd,readbuffer,strlen(readbuffer)+1); 	// send the result
+						}		
 					}
 				}else if(!strcmp(token,"/numPatientDischarges")){ 
 					strcpy(country,"-");
+					char temp[150];
 					for (int i = 0; i < 4; i++){
 						
 						if(token!=NULL){
@@ -548,23 +569,31 @@ int main(int argc, char const *argv[]){
 								strcpy(country,token);
 						}	
 					}
+					char readbuffer[100];
 					if(!strcmp(country,"-")){
-						strcpy(readbuffer,"-");
-						strcat(readbuffer,"$");
+						strcpy(readbuffer,"");
 						for (int i = 0; i < maxFolders; i++){
 							strcat(readbuffer,countries[i]);
 							strcat(readbuffer,"$");
 							count = diseaseFrequency(countries[i],disease,diseaseHashtable,countryHashtable,date1,date2,FALSE,TRUE);  // find the frequency of the dicharges
 							sprintf(tempbuffer,"%d",count);
 							strcat(readbuffer,tempbuffer);
+							strcat(readbuffer,"$");
 						}
-
-						write(server_fd,readbuffer,strlen(readbuffer)); 	// send the result
-
-					}else{
-						count = diseaseFrequency(country,disease,diseaseHashtable,countryHashtable,date1,date2,FALSE,TRUE);
+						write(server_fd,readbuffer,strlen(readbuffer)+1); 	// send the result
+					}else{					
+						count = diseaseFrequency(country,disease,diseaseHashtable,countryHashtable,date1,date2,FALSE,TRUE);  // find the frequency of the dicharges
 						sprintf(tempbuffer,"%d",count);
-						write(server_fd,tempbuffer,strlen(tempbuffer)); 	// send the result 				
+						if(count<0){
+							strcpy(readbuffer,"-1");
+							strcat(readbuffer,"$");
+							write(server_fd,readbuffer,strlen(readbuffer)+1); 
+						}else{
+							strcpy(readbuffer,"1");
+							strcat(readbuffer,"$");
+							strcat(readbuffer,tempbuffer);
+							write(server_fd,readbuffer,strlen(readbuffer)+1); 	// send the result
+						}		
 					}
 				}				
 			}

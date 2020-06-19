@@ -116,8 +116,6 @@ void * thread_function(void * arg){
 			int socket_array[numOfWorkers];
 			char* command;
 
-			fprintf(stdout,"workers: %d\n",numOfWorkers );
-
 			for (int i = 0; i < numOfWorkers; i++){
 				int sock;
 				struct hostent *rem;
@@ -126,8 +124,6 @@ void * thread_function(void * arg){
 				struct in_addr worker_server_addr;
 
 				inet_aton(workersArray[i].IP,&worker_server_addr);
-
-				fprintf(stdout,"%s  -  %d\n",workersArray[i].IP,workersArray[i].port );
 
 				if((sock = socket(AF_INET, SOCK_STREAM,0)) < 0)			/* Create socket */
 					err("Socket");
@@ -144,7 +140,7 @@ void * thread_function(void * arg){
 
 				socket_array[i] = sock;
 
-				fprintf(stdout,"Connect with worker_server in fd %d\n",socket_array[i]);
+				fprintf(stdout,"Connect with worker for query\n");
 			}
 
 			if(read(data->fd,buff,sizeof(buff))<0)
@@ -162,21 +158,39 @@ void * thread_function(void * arg){
 			
 			if(!strcmp(command,"/diseaseFrequency")){
 				int total=0;
+				flag = FALSE;
+				char temp[50];
 				for (int i = 0; i < numOfWorkers; i++){
 					if(read(socket_array[i],readbuff,sizeof(readbuff))<0)
 						err("read");
-					if(atoi(readbuff)!=-1)
-						total+=atoi(readbuff);	
+					strcpy(temp,readbuff);
+					tok = strtok(temp,"$");
+					if(!strcmp(tok,"1")){
+						flag = TRUE;
+						tok = strtok(NULL,"$");
+						total+=atoi(tok);				
+					}				
 				}
-				sprintf(readbuff,"%d",total);
-				if(write(data->fd,readbuff,strlen(readbuff)+1)<0)
-					err("write");					
+				if(!flag){
+					char readbuff[10];
+					strcpy(readbuff,"-1");
+					strcat(readbuff,"$");
+					if(write(data->fd,readbuff,strlen(readbuff)+1)<0)
+						err("write");
+				}else{
+					char readbuff[150];
+					sprintf(readbuff,"%d",total);
+					if(write(data->fd,readbuff,strlen(readbuff)+1)<0)
+						err("write");
+				}					
 			}else if(!strcmp(command,"/topk-AgeRanges")){
 				flag = FALSE;
+				char tempbuffer[150];
 				for (int i = 0; i < numOfWorkers; i++){
 					if(read(socket_array[i],readbuff,sizeof(readbuff))<0)
 						err("read");
-					tok = strtok(readbuff,"$");
+					strcpy(tempbuffer,readbuff);
+					tok = strtok(tempbuffer,"$");
 					if(!strcmp(tok,"1")){
 						flag = TRUE;
 						if(write(data->fd,readbuff,strlen(readbuff)+1)<0)
@@ -184,6 +198,7 @@ void * thread_function(void * arg){
 					}
 				}
 				if(!flag){
+					char readbuff[10];
 					strcpy(readbuff,"-1");
 					strcat(readbuff,"$");
 					if(write(data->fd,readbuff,strlen(readbuff)+1)<0)
@@ -191,10 +206,12 @@ void * thread_function(void * arg){
 				}
 			}else if(!strcmp(command,"/searchPatientRecord")){
 				flag = FALSE;
+				char temp[150];
 				for (int i = 0; i < numOfWorkers; i++){
 					if(read(socket_array[i],readbuff,sizeof(readbuff))<0)
 						err("read");
-					tok = strtok(readbuff,"$");
+					strcpy(temp,readbuff);
+					tok = strtok(temp,"$");
 					if(!strcmp(tok,"1")){
 						flag = TRUE;
 						if(write(data->fd,readbuff,strlen(readbuff)+1)<0)
@@ -202,19 +219,42 @@ void * thread_function(void * arg){
 					}
 				}
 				if(!flag){
+					char readbuff[10];
 					strcpy(readbuff,"0");
 					strcat(readbuff,"$");
 					if(write(data->fd,readbuff,strlen(readbuff)+1)<0)
 						err("write");
 				}
 
-			}else{
+			}else if(!strcmp(command,"/numPatientAdmissions") || !strcmp(command,"/numPatientDischarges")){
+				flag = FALSE;
+				char temp[150];
+				char writebuffer[512];
+				strcpy(writebuffer,"");
 				for (int i = 0; i < numOfWorkers; i++){				
 					if(read(socket_array[i],readbuff,sizeof(readbuff))<0)
 						err("read");
-
+					strcpy(temp,readbuff);
+					tok = strtok(temp,"$");
+					if(strcmp(tok,"-1") && strcmp(tok,"1")){
+						flag=TRUE;
+						strcat(writebuffer,readbuff);						
+						
+					}else if(!strcmp(tok,"1")){
+						flag = TRUE;
+						if(write(data->fd,readbuff,strlen(readbuff)+1)<0)
+							err("write");						
+					}				
+				}
+				if(!flag){
+					char readbuff[10];
+					strcpy(readbuff,"-1");
+					strcat(readbuff,"$");
 					if(write(data->fd,readbuff,strlen(readbuff)+1)<0)
 						err("write");
+				}else{
+					if(write(data->fd,writebuffer,strlen(writebuffer)+1)<0)
+							err("write");
 				}
 			}
 

@@ -15,8 +15,6 @@
 #include "../include/utils.h"
 #define err(mess){fprintf(stderr,"\033[1;31mERROR: \033[0m: %s\n",mess);exit(1);}
 
-int sock;
-
 int activeThreads = 0;   
 int waitingThreads = 0;  /* number of threads waiting on the condition */
 int readyFlag = 0;       /* flag to tell the threads to proceed when signaled */
@@ -24,6 +22,9 @@ pthread_cond_t  cond;    /* condition to wait on / signal */
 pthread_mutex_t mtx;     /* mutex for the above */
 pthread_cond_t  condWaiting; /* variable to signal when each thread starts waiting */
 pthread_mutex_t print_mtx;
+
+char servIP[32];
+int servPort;
 
 void * thread_function(void * arg){
 	char * line = (char*) arg;
@@ -35,6 +36,7 @@ void * thread_function(void * arg){
 	char* tok;
 	strcpy(tempbuffer,line);
 	strcpy(temp,line);
+	int sock;
 
 	pthread_mutex_lock(&mtx);
 
@@ -48,6 +50,28 @@ void * thread_function(void * arg){
     }
 	pthread_mutex_unlock(&mtx);
 
+	struct sockaddr_in server;
+	struct sockaddr * serverptr = (struct sockaddr *) &server;
+	struct hostent * rem;
+	struct in_addr server_addr;
+
+	inet_aton(servIP,&server_addr);
+
+	if((sock = socket(AF_INET, SOCK_STREAM,0)) < 0)			/* Create socket */
+		err("Socket");
+
+	if((rem = gethostbyaddr((const char*)&server_addr,sizeof(server_addr),AF_INET)) == NULL)		/* Find server address */
+		err("gethostbyaddr");
+	
+	server.sin_family = AF_INET;		 /* Internet domain */
+	memcpy(&server.sin_addr,rem->h_addr,rem->h_length);
+	server.sin_port = htons(servPort);	 /* Server port */
+
+	if(connect(sock,serverptr,sizeof(server)) < 0)
+		err("Connect");
+	
+	printf("Connecting to %s IP in port %d \n",servIP, servPort);
+
 	if(write(sock,line,strlen(line)+1)<0)
 		err("write");
 
@@ -55,7 +79,6 @@ void * thread_function(void * arg){
 		err("read");
 
 	flockfile(stdout);
-
 	token = strtok(temp," ");
 	if(!strcmp(token,"/topk-AgeRanges")){
 		fprintf(stdout,"\033[1;36mREQUEST:  \033[0m%s\n",tempbuffer );
@@ -105,10 +128,9 @@ void * thread_function(void * arg){
 	}else if(!strcmp(token,"/numPatientAdmissions") || !strcmp(token,"/numPatientDischarges")){
 		fprintf(stdout,"\033[1;36mREQUEST:  \033[0m%s\n",tempbuffer );
 		tok = strtok(buff,s);	
-		if(!strcmp(tok,"-")){
+		if(strcmp(tok,"-1") && strcmp(tok,"1")){
 			fprintf(stdout,"\033[1;36mRESULT:  \033[0m\n");	
 			fflush(stdout);	
-			tok = strtok(NULL,s);
 			while(tok!=NULL){
 				fprintf(stdout,"%s ",tok);
 				fflush(stdout);	
@@ -117,18 +139,28 @@ void * thread_function(void * arg){
 				fflush(stdout);	
 				tok = strtok(NULL,s);
 			}
-		}else{
+		}else if(!strcmp(tok,"1")){
+			tok = strtok(NULL,s);
 			fprintf(stdout,"\033[1;36mRESULT:  \033[0m%s\n",tok);
 			fflush(stdout);
+		}else if(!strcmp(tok,"-1")){
+			fprintf(stdout,"\033[1;36mRESULT: \033[0mAn error has occured\n");
+			fflush(stdout);	
 		}
 
-	}else{
+	}else if(!strcmp(token,"/diseaseFrequency")){
 
 		fprintf(stdout,"\033[1;36mREQUEST:  \033[0m%s\n",tempbuffer );
-		fflush(stdout);
-
-		fprintf(stdout,"\033[1;36mRESULT:  \033[0m%s\n",buff );
-		fflush(stdout);
+		tok = strtok(buff,s);	
+		
+		if(!strcmp(tok,"1")){
+			tok = strtok(NULL,s);
+			fprintf(stdout,"\033[1;36mRESULT:  \033[0m%s\n",tok);
+			fflush(stdout);
+		}else if(!strcmp(tok,"-1")){
+			fprintf(stdout,"\033[1;36mRESULT: \033[0mAn error has occured\n");
+			fflush(stdout);	
+		}
 	}
 
 	funlockfile(stdout);
@@ -148,12 +180,7 @@ int main(int argc, char const *argv[]){
 	char* line = NULL;
 	size_t len = 0;
 	char buffer[256];
-	
-	struct sockaddr_in server;
-	struct sockaddr * serverptr = (struct sockaddr *) &server;
-	struct hostent * rem;
-	struct in_addr server_addr;
-
+	int countThreads = 0;
 	pthread_t * tids;
 
 	for(int i=0; i<argc;i++){
@@ -167,23 +194,6 @@ int main(int argc, char const *argv[]){
 		if(!strcmp(argv[i],"-w"))
 			numThreads =  atoi(argv[i+1]);
 	}
-
-	inet_aton(servIP,&server_addr);
-
-	if((sock = socket(AF_INET, SOCK_STREAM,0)) < 0)			/* Create socket */
-		err("Socket");
-
-	if((rem = gethostbyaddr((const char*)&server_addr,sizeof(server_addr),AF_INET)) == NULL)		/* Find server address */
-		err("gethostbyaddr");
-	
-	server.sin_family = AF_INET;		 /* Internet domain */
-	memcpy(&server.sin_addr,rem->h_addr,rem->h_length);
-	server.sin_port = htons(servPort);	 /* Server port */
-
-	if(connect(sock,serverptr,sizeof(server)) < 0)
-		err("Connect");
-	
-	printf("Connecting to %s IP in port %d \n",servIP, servPort);
 
 	if((fp = fopen(queryFile,"r")) == NULL)	//open file
 		err("Can not open file");
@@ -221,34 +231,62 @@ int main(int argc, char const *argv[]){
 		if(pthread_create(tids+i, NULL ,thread_function, (void*) lines[i])<0)
 			err("create thread");
 		activeThreads++;
+		countThreads++;
+		if(countThreads == numOfLines){
+			pthread_mutex_lock(&mtx);
+		    
+		    while (waitingThreads < activeThreads){ /* wait on 'condWaiting' until all active threads are waiting */
+		      pthread_cond_wait(&condWaiting,&mtx);
+		    }
+		    if(waitingThreads != 0){
+		      readyFlag = 1;
+		      pthread_cond_broadcast(&cond);
+		    }
+
+		  	pthread_mutex_unlock(&mtx);
+
+		  	pthread_mutex_lock(&mtx);
+		    
+		    if(waitingThreads == 0)
+		      readyFlag = 0;
+		  	
+		  	pthread_mutex_unlock(&mtx);
+		}
 	}
 
-	pthread_mutex_lock(&mtx);
-    
-    while (waitingThreads < activeThreads){ /* wait on 'condWaiting' until all active threads are waiting */
-      pthread_cond_wait(&condWaiting,&mtx);
-    }
-    if(waitingThreads != 0){
-      readyFlag = 1;
-      pthread_cond_broadcast(&cond);
-    }
+	// while(countThreads<numOfLines){
+	// 	getline(&line,&len,fp);	
+	// 	lines[i] = malloc((strlen(line)+1)*sizeof(char));
+	// 	strcpy(lines[i],line);
 
-  	pthread_mutex_unlock(&mtx);
+	// 	if(pthread_create(tids+i, NULL ,thread_function, (void*) lines[i])<0)
+	// 		err("create thread");
+	// 	activeThreads++;
+	// 	countThreads++;
 
-  	pthread_mutex_lock(&mtx);
-    
-    if(waitingThreads == 0)
-      readyFlag = 0;
-  	
-  	pthread_mutex_unlock(&mtx);
+	// 	if(countThreads == numOfLines){
+	// 		pthread_mutex_lock(&mtx);
+		    
+	// 	    while (waitingThreads < activeThreads){  // wait on 'condWaiting' until all active threads are waiting 
+	// 	      pthread_cond_wait(&condWaiting,&mtx);
+	// 	    }
+	// 	    if(waitingThreads != 0){
+	// 	      readyFlag = 1;
+	// 	      pthread_cond_broadcast(&cond);
+	// 	    }
 
-  	while(1){
-  // 		while(read(server_fd,readbuffer,sizeof(readbuffer))>0){
-		// 	printf("%s\n",readbuffer );
-			
-		// }
-  	}
-	
+	// 	  	pthread_mutex_unlock(&mtx);
+
+	// 	  	pthread_mutex_lock(&mtx);
+		    
+	// 	    if(waitingThreads == 0)
+	// 	      readyFlag = 0;
+		  	
+	// 	  	pthread_mutex_unlock(&mtx);
+	// 	}
+
+	// }
+
 	for(int i=0 ; i < numThreads ; i++){		/* Wait for thread termination */
 		if(pthread_join(*(tids + i),NULL)<0) 
 			err("pthread_join");
