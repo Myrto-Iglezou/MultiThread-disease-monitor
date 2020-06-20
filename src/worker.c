@@ -19,6 +19,12 @@
 #define TRUE 1
 #define FALSE 0
 
+static volatile sig_atomic_t SIGINTFlag = FALSE;
+
+void SIGINTHandler(int sig_num){
+	SIGINTFlag = TRUE;
+}
+
 
 int main(int argc, char const *argv[]){
 
@@ -56,6 +62,15 @@ int main(int argc, char const *argv[]){
 	char serverIP[32];
 	int serverPort;
 	
+	/*--------------------------- Handle Signals -------------------------------------*/ 
+
+	static struct sigaction SIGINTact;
+
+	SIGINTact.sa_handler = SIGINTHandler;
+	sigfillset(&(SIGINTact.sa_mask));
+
+	if(sigaction(SIGINT,&SIGINTact,NULL) == -1)
+		err("sigaction error");
 
 	/*---------------------------- Read from the input -------------------------------*/
 
@@ -348,6 +363,11 @@ int main(int argc, char const *argv[]){
 	printf("start poll\n");
 	
 	while(1){
+
+		if(SIGINTFlag){
+			SIGINTFlag = FALSE;
+			break;	
+		}
 		rc = poll(tempfd,1,1);	
 		if(rc > 0){
 			if((tempfd[0].revents & POLLIN)){	
@@ -357,7 +377,6 @@ int main(int argc, char const *argv[]){
 				printf("accept connection with server\n");
 
 				read(server_fd,readbuffer,sizeof(readbuffer));
-				// printf("%s\n",readbuffer );
 
 				token = strtok(readbuffer,s);
 
@@ -537,7 +556,6 @@ int main(int argc, char const *argv[]){
 						}
 						write(server_fd,readbuffer,strlen(readbuffer)+1); 	// send the result
 					}else{
-						
 						count = diseaseFrequency(country,disease,diseaseHashtable,countryHashtable,date1,date2,TRUE,FALSE);
 						sprintf(tempbuffer,"%d",count);
 						if(count<0){

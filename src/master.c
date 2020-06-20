@@ -15,10 +15,15 @@ static volatile sig_atomic_t signalPid = -1;
 
 static volatile sig_atomic_t SIGCHLDFlag = FALSE;
 
+static volatile sig_atomic_t SIGINTFlag = FALSE;
 
 void SIGCHLD_pid(int sig, siginfo_t *info, void* context){
 	signalPid = info->si_pid;
 	SIGCHLDFlag = TRUE;
+}
+
+void SIGINTHandler(int sig_num){
+	SIGINTFlag = TRUE;
 }
 
 int main(int argc, char const *argv[]){
@@ -39,12 +44,18 @@ int main(int argc, char const *argv[]){
 
 	/*--------------------------- Handle Signals -------------------------------------*/ 
 
-	static struct sigaction SIGCHLDact;
+	static struct sigaction SIGCHLDact,SIGINTact;
 	
 	SIGCHLDact.sa_flags = SA_SIGINFO;
 	SIGCHLDact.sa_sigaction = SIGCHLD_pid;
 
+	SIGINTact.sa_handler = SIGINTHandler;
+	sigfillset(&(SIGINTact.sa_mask));
+
 	if(sigaction(SIGCHLD,&SIGCHLDact,NULL) == -1)
+		err("sigaction error");
+
+	if(sigaction(SIGINT,&SIGINTact,NULL) == -1)
 		err("sigaction error");
 	
 
@@ -206,76 +217,87 @@ int main(int argc, char const *argv[]){
 
 	int flag = TRUE;
 	
-	// while(flag){
+	while(flag){
 
-	// 	if(SIGCHLDFlag){	// if a child is killed
+		if(SIGCHLDFlag){	// if a child is killed
 
-	// 		int workerNum,id;
-	// 		id = signalPid;
+			int workerNum,id;
+			id = signalPid;
 
-	// 		workerNum  = findNum(id,workerArray,numWorkers);
+			workerNum  = findNum(id,workerArray,numWorkers);
 			
-	// 		pid = fork();		// create a new child
+			pid = fork();		// create a new child
 
-	//         if(pid == -1){
-	//            	err("fork failed" );
-	//         }
-	//         else if(pid == 0){
-	// 	        sprintf(fifoBuffer,"%d",bufferSize);
-	//            	execlp("./worker","worker","-rfn",workerArray[workerNum]->writeFifo,"-s",serverIP,"-p",serverPort,"-b",fifoBuffer,NULL);
-	//         }
-	//         else{
-	//         	workerArray[workerNum]->pid = pid;
-	//         } 
+	        if(pid == -1){
+	           	err("fork failed" );
+	        }
+	        else if(pid == 0){
+		        sprintf(fifoBuffer,"%d",bufferSize);
+	           	execlp("./worker","worker","-rfn",workerArray[workerNum]->writeFifo,"-b",fifoBuffer,NULL);
+	        }
+	        else{
+	        	workerArray[workerNum]->pid = pid;
+	        } 
 
-	//         close(workerArray[workerNum]->writeFd);
+	        close(workerArray[workerNum]->writeFd);
 
-	//         while(1){
+	        while(1){
 
-	// 			workerArray[workerNum]->writeFd = open(workerArray[workerNum]->writeFifo, O_WRONLY);	// open fifo for write
+				workerArray[workerNum]->writeFd = open(workerArray[workerNum]->writeFifo, O_WRONLY);	// open fifo for write
 				
-	// 			if(workerArray[workerNum]->writeFd > 0)
-	// 				break;
-	// 		}
+				if(workerArray[workerNum]->writeFd > 0)
+					break;
+			}
 
-	// 		if(write(workerArray[workerNum]->writeFd,&countriesCounter[workerNum],sizeof(int))<0)
-	// 			err("Problem in writing");
+			writeBytes(serverPort,workerArray[workerNum]->writeFd,bufferSize);
+			writeBytes(serverIP,workerArray[workerNum]->writeFd,bufferSize);
 
-	//         for (int i = 0; i < countriesCounter[workerNum]; i++){
+			if(write(workerArray[workerNum]->writeFd,&countriesCounter[workerNum],sizeof(int))<0)
+				err("Problem in writing");
+
+	        for (int i = 0; i < countriesCounter[workerNum]; i++){
 	       		
-	//        		strcpy(path,cwd);
-	// 			strcat(path,"/");
-	// 			strcat(path,input_dir); 
-	// 			strcat(path,"/");
-	// 			strcat(path,workerArray[workerNum]->countries[i]);
+	       		strcpy(path,cwd);
+				strcat(path,"/");
+				strcat(path,input_dir); 
+				strcat(path,"/");
+				strcat(path,workerArray[workerNum]->countries[i]);
 
-	// 			strPointer = &path[0];
-	// 			size = bufferSize;
-	// 			message_size = strlen(path);
-	// 			if(write(workerArray[workerNum]->writeFd,&message_size,sizeof(int))<0)
-	// 				err("Problem in writing");
-	// 			count = 0;
-	// 			while(count < strlen(path)){
+				strPointer = &path[0];
+				size = bufferSize;
+				message_size = strlen(path);
+				if(write(workerArray[workerNum]->writeFd,&message_size,sizeof(int))<0)
+					err("Problem in writing");
+				count = 0;
+				while(count < strlen(path)){
 
-	// 				strPointer = &path[0];
-	// 				strPointer+=count;
+					strPointer = &path[0];
+					strPointer+=count;
 					
-	// 				if(((strlen(path)+1)-count)<size){
-	// 					size = (strlen(path)+1)-count;					
-	// 				}
-	// 				strncpy(tempStr,strPointer,size);
-	// 				if(write(workerArray[workerNum]->writeFd,tempStr,size)<0)
-	// 					err("Problem in writing");
-	// 				count+=size;
-	// 			}  	
-	//         }   	
+					if(((strlen(path)+1)-count)<size){
+						size = (strlen(path)+1)-count;					
+					}
+					strncpy(tempStr,strPointer,size);
+					if(write(workerArray[workerNum]->writeFd,tempStr,size)<0)
+						err("Problem in writing");
+					count+=size;
+				}  	
+	        }   	
 			
-	// 		SIGCHLDFlag = FALSE;
-	// 		signalPid = -1;
-	// 	}
-	// 	if(wait(NULL)<=0)
-	// 		flag = FALSE;
-	// }
+			SIGCHLDFlag = FALSE;
+			signalPid = -1;
+		}
+
+		if(SIGINTFlag){
+
+			for (int i = 0; i < numWorkers; i++){	// kill all children 
+				kill(workerArray[i]->pid,SIGKILL);
+			}
+
+			SIGINTFlag = FALSE;
+			break;				
+		}
+	}
 		
 	while(wait(NULL)>0);
 

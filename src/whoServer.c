@@ -17,20 +17,20 @@
 #include "../include/utils.h"
 #define err(mess){fprintf(stderr,"\033[1;31mERROR: \033[0m: %s\n",mess);exit(1);}
 
-typedef struct{
+typedef struct{			// struct in the buffer
 	int fd;
 	char info[5];
 	char IP[32];
 }fd_info;
 
-typedef struct {
+typedef struct {		// struct for buffer
 	fd_info* data;
 	int start;
 	int end;
 	int count;
 }buffer_t;
 
-typedef struct {
+typedef struct {		// struct to keep information for the workers
 	int port;
 	char IP[32];
 }worker_info;
@@ -40,17 +40,9 @@ buffer_t buffer;
 worker_info* workersArray;
 int numOfWorkers = 0;
 
-int portExists(worker_info* array,int num,int port){
+int portExists(worker_info* array,int num,int port){		// check if the port in the array of workers exist
 	for (int i = 0; i < num; i++){
 		if(array[i].port == port)
-			return TRUE;
-	}
-	return FALSE;
-}
-
-int IPExists(worker_info* array,int num,char IP[32]){
-	for (int i = 0; i < num; i++){
-		if(!strcmp(array[i].IP,IP))
 			return TRUE;
 	}
 	return FALSE;
@@ -61,7 +53,7 @@ pthread_mutex_t print_mtx;
 pthread_cond_t cond_nonempty;
 pthread_cond_t cond_nonfull;
 
-void initialize(buffer_t * buffer,int num){
+void initialize(buffer_t * buffer,int num){			// inisialize the buffer
 	buffer->start = 0;
 	buffer->end = -1;
 	buffer->count = 0;
@@ -72,7 +64,7 @@ void deleteBuffer(buffer_t* buffer){
 	free(buffer->data);
 }
 
-void addFd(buffer_t* buffer,int fd,char* info,char* IP,int bufferSize){
+void addFd(buffer_t* buffer,int fd,char* info,char* IP,int bufferSize){		// add a new fd in the buffer
 	pthread_mutex_lock(&mtx);
 	while(buffer->count >=bufferSize){
 		pthread_cond_wait(&cond_nonfull, &mtx);
@@ -85,7 +77,7 @@ void addFd(buffer_t* buffer,int fd,char* info,char* IP,int bufferSize){
 	pthread_mutex_unlock(&mtx);
 }
 
-fd_info* returnFdInfo(buffer_t* buffer,int bufferSize){
+fd_info* returnFdInfo(buffer_t* buffer,int bufferSize){			// reamove a fd from the buffer
 	fd_info* data = malloc(sizeof(fd_info));
 	pthread_mutex_lock(&mtx);
 	while(buffer->count <= 0){
@@ -109,14 +101,16 @@ void * thread_function(void * arg){
 		data = returnFdInfo(&buffer,bufferSize);
 		pthread_cond_signal(&cond_nonfull);
 
-		if(!strcmp(data->info,"q")){
+		if(!strcmp(data->info,"q")){				// if a message has arrived in the port for queries
 			fprintf(stdout,"Receive Query\n");
 			char buff[150];
 			char readbuff[150];
-			int socket_array[numOfWorkers];
+			int socket_array[numOfWorkers];			// array to keep the fds of workers
 			char* command;
 
-			for (int i = 0; i < numOfWorkers; i++){
+		/*----------------------- Create connection with every worker ------------------------*/
+
+			for (int i = 0; i < numOfWorkers; i++){	
 				int sock;
 				struct hostent *rem;
 				struct sockaddr_in worker_server;
@@ -142,16 +136,17 @@ void * thread_function(void * arg){
 
 				fprintf(stdout,"Connect with worker for query\n");
 			}
+		/*-------------------------------------------------------------------------------------*/
 
-			if(read(data->fd,buff,sizeof(buff))<0)
+			if(read(data->fd,buff,sizeof(buff))<0)		// read the query from the client
 				err("read");
 
 			strcpy(readbuff,buff);
-			command = strtok(readbuff," ");
+			command = strtok(readbuff," ");			// find the command
 			char* tok;
 			int flag;
 
-			for (int i = 0; i < numOfWorkers; i++){
+			for (int i = 0; i < numOfWorkers; i++){			// write the query to every worker 
 				if(write(socket_array[i],buff,strlen(buff)+1)<0)
 					err("write");
 			}
@@ -168,18 +163,23 @@ void * thread_function(void * arg){
 					if(!strcmp(tok,"1")){
 						flag = TRUE;
 						tok = strtok(NULL,"$");
-						total+=atoi(tok);				
+						total+=atoi(tok);		// add result of every worker			
 					}				
 				}
-				if(!flag){
+				if(!flag){		// if none of the workers send a result > 0
 					char readbuff[10];
 					strcpy(readbuff,"-1");
-					strcat(readbuff,"$");
+					strcat(readbuff,"$");		// send -1 to client, in order he knows something went wrong
 					if(write(data->fd,readbuff,strlen(readbuff)+1)<0)
 						err("write");
 				}else{
 					char readbuff[150];
-					sprintf(readbuff,"%d",total);
+					char temp[20];
+					strcpy(readbuff,"1");		// send 1 if there is a result
+					strcat(readbuff,"$");
+					sprintf(temp,"%d",total);
+					strcat(readbuff,temp);
+					strcat(readbuff,"$");
 					if(write(data->fd,readbuff,strlen(readbuff)+1)<0)
 						err("write");
 				}					
@@ -197,9 +197,9 @@ void * thread_function(void * arg){
 							err("write");
 					}
 				}
-				if(!flag){
+				if(!flag){		// if none of the workers found ranges
 					char readbuff[10];
-					strcpy(readbuff,"-1");
+					strcpy(readbuff,"-1");		// send -1 to client, in order he knows something went wrong
 					strcat(readbuff,"$");
 					if(write(data->fd,readbuff,strlen(readbuff)+1)<0)
 						err("write");
@@ -213,14 +213,14 @@ void * thread_function(void * arg){
 					strcpy(temp,readbuff);
 					tok = strtok(temp,"$");
 					if(!strcmp(tok,"1")){
-						flag = TRUE;
+						flag = TRUE;			// if a worker found the record send the info to client
 						if(write(data->fd,readbuff,strlen(readbuff)+1)<0)
 							err("write");
 					}
 				}
-				if(!flag){
+				if(!flag){		// if no worker found the record id
 					char readbuff[10];
-					strcpy(readbuff,"0");
+					strcpy(readbuff,"0");		// send 0 to client, so he understands there is no record with that id
 					strcat(readbuff,"$");
 					if(write(data->fd,readbuff,strlen(readbuff)+1)<0)
 						err("write");
@@ -236,46 +236,46 @@ void * thread_function(void * arg){
 						err("read");
 					strcpy(temp,readbuff);
 					tok = strtok(temp,"$");
-					if(strcmp(tok,"-1") && strcmp(tok,"1")){
+					if(strcmp(tok,"-1") && strcmp(tok,"1")){	// if no specific country is given or there wasn't an error
 						flag=TRUE;
-						strcat(writebuffer,readbuff);						
+						strcat(writebuffer,readbuff);		// concat the results of all workers				
 						
-					}else if(!strcmp(tok,"1")){
+					}else if(!strcmp(tok,"1")){		// if a specific country is given, we expect result from one worker
 						flag = TRUE;
 						if(write(data->fd,readbuff,strlen(readbuff)+1)<0)
 							err("write");						
 					}				
 				}
-				if(!flag){
+				if(!flag){		// if flag is FALSE, an error has occured
 					char readbuff[10];
-					strcpy(readbuff,"-1");
+					strcpy(readbuff,"-1");		// send -1 to client, so he knows that
 					strcat(readbuff,"$");
 					if(write(data->fd,readbuff,strlen(readbuff)+1)<0)
 						err("write");
-				}else{
+				}else{			// if flag is TRUE send him the result
 					if(write(data->fd,writebuffer,strlen(writebuffer)+1)<0)
 							err("write");
 				}
 			}
 
-		}else if(!strcmp(data->info,"s")){
+		}else if(!strcmp(data->info,"s")){		// if a message has arrived in the port of statistics
 			/*  Receive Statistics */ 
 			statistics* stat = calloc(1,sizeof(statistics));
 			int port;
 
-			read(data->fd,&port,sizeof(int));
+			read(data->fd,&port,sizeof(int));		// read the query port from worker
 
-			if(!portExists(workersArray,numOfWorkers,port)){
-				workersArray[numOfWorkers].port = port;
+			if(!portExists(workersArray,numOfWorkers,port)){		// chech if this port already exists in the array of workers
+				workersArray[numOfWorkers].port = port;			// if not save the info for the new worker
 				strcpy(workersArray[numOfWorkers].IP,data->IP); 
 				pthread_mutex_lock(&print_mtx);
-				numOfWorkers++;
+				numOfWorkers++;				// increase num of workers
 				pthread_mutex_unlock(&print_mtx);
 			}
 			
 			flockfile(stdout);
-			while(read(data->fd,stat,sizeof(statistics))>0){			
-				// printStat(stat);		
+			while(read(data->fd,stat,sizeof(statistics))>0){		// read statistics
+				// printStat(stat);		// print staistics
 			}
 			fprintf(stdout,"Receive Statistics\n");		
 			funlockfile(stdout);
@@ -283,6 +283,7 @@ void * thread_function(void * arg){
 		}else
 			err("problem with fd info");
 		free(data);
+		free(stat);
 	}
 	pthread_exit(NULL);
 }
@@ -396,10 +397,11 @@ int main(int argc, char const *argv[]){
 			}else if((socket_fds[1].revents & POLLIN)){			// if statistics have arrived
 				if((answer_fd = accept(statistics_fd,workerptr,&workerlen)) < 0)	/* accept connection */
 					err("Accept");
+
 				printf("accept connection with worker\n");
 
 				socklen_t len = sizeof(worker);	
-				if(getpeername(answer_fd,(struct sockaddr*)&worker,&len)<0)
+				if(getpeername(answer_fd,(struct sockaddr*)&worker,&len)<0)		// find the IP of worker
 					err("getpeername");
 
 				strcpy(IP ,inet_ntoa(worker.sin_addr));

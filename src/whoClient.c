@@ -21,7 +21,6 @@ int readyFlag = 0;       /* flag to tell the threads to proceed when signaled */
 pthread_cond_t  cond;    /* condition to wait on / signal */
 pthread_mutex_t mtx;     /* mutex for the above */
 pthread_cond_t  condWaiting; /* variable to signal when each thread starts waiting */
-pthread_mutex_t print_mtx;
 
 char servIP[32];
 int servPort;
@@ -67,19 +66,19 @@ void * thread_function(void * arg){
 	memcpy(&server.sin_addr,rem->h_addr,rem->h_length);
 	server.sin_port = htons(servPort);	 /* Server port */
 
-	if(connect(sock,serverptr,sizeof(server)) < 0)
+	if(connect(sock,serverptr,sizeof(server)) < 0)		// connect with server
 		err("Connect");
 	
-	printf("Connecting to %s IP in port %d \n",servIP, servPort);
-
-	if(write(sock,line,strlen(line)+1)<0)
+	if(write(sock,line,strlen(line)+1)<0)				// write the query
 		err("write");
 
-	if(read(sock,buff,sizeof(buff))<0)
+	if(read(sock,buff,sizeof(buff))<0)					// read the answer
 		err("read");
 
-	flockfile(stdout);
-	token = strtok(temp," ");
+	flockfile(stdout);			// lock the stdout, so one thread can write
+
+	token = strtok(temp," ");			// find the command
+
 	if(!strcmp(token,"/topk-AgeRanges")){
 		fprintf(stdout,"\033[1;36mREQUEST:  \033[0m%s\n",tempbuffer );
 		fflush(stdout);
@@ -88,10 +87,10 @@ void * thread_function(void * arg){
 			strcpy(token,"4");
 		tok = strtok(buff,s);
 		if(!strcmp(tok,"-1")){
-			fprintf(stdout,"\033[1;36mRESULT: \033[0mAn error has occured\n");
+			fprintf(stdout,"\033[1;34mRESULT: \033[0mAn error has occured\n\n");
 			fflush(stdout);	
 		}else if(!strcmp(tok,"1")){
-			fprintf(stdout,"\033[1;36mRESULT:  \033[0m\n");
+			fprintf(stdout,"\033[1;34mRESULT:  \033[0m\n");
 			fflush(stdout);
 
 			for(int i=0 ; i<2*atoi(token) ; i++){
@@ -110,12 +109,13 @@ void * thread_function(void * arg){
 		}
 	}else if(!strcmp(token,"/searchPatientRecord")){
 		fprintf(stdout,"\033[1;36mREQUEST:  \033[0m%s\n",tempbuffer );
+		fflush(stdout);
 		tok = strtok(buff,s);	
 		if(!strcmp(tok,"0")){
-			fprintf(stdout,"\033[1;36mRESULT: \033[0m No record with this id\n");
+			fprintf(stdout,"\033[1;34mRESULT: \033[0m No record with this id\n\n");
 			fflush(stdout);	
 		}else{
-			fprintf(stdout,"\033[1;36mRESULT:  \033[0m");	
+			fprintf(stdout,"\033[1;34mRESULT:  \033[0m");	
 			fflush(stdout);	
 			tok = strtok(NULL,s);
 			while(tok!=NULL){
@@ -123,13 +123,15 @@ void * thread_function(void * arg){
 				fflush(stdout);	
 				tok = strtok(NULL,s);
 			}
-			fprintf(stdout,"\n");
+			fprintf(stdout,"\n\n");
+			fflush(stdout);
 		}
 	}else if(!strcmp(token,"/numPatientAdmissions") || !strcmp(token,"/numPatientDischarges")){
 		fprintf(stdout,"\033[1;36mREQUEST:  \033[0m%s\n",tempbuffer );
+		fflush(stdout);
 		tok = strtok(buff,s);	
 		if(strcmp(tok,"-1") && strcmp(tok,"1")){
-			fprintf(stdout,"\033[1;36mRESULT:  \033[0m\n");	
+			fprintf(stdout,"\033[1;34mRESULT:  \033[0m\n\n");	
 			fflush(stdout);	
 			while(tok!=NULL){
 				fprintf(stdout,"%s ",tok);
@@ -141,26 +143,29 @@ void * thread_function(void * arg){
 			}
 		}else if(!strcmp(tok,"1")){
 			tok = strtok(NULL,s);
-			fprintf(stdout,"\033[1;36mRESULT:  \033[0m%s\n",tok);
+			fprintf(stdout,"\033[1;34mRESULT:  \033[0m%s\n",tok);
 			fflush(stdout);
 		}else if(!strcmp(tok,"-1")){
-			fprintf(stdout,"\033[1;36mRESULT: \033[0mAn error has occured\n");
+			fprintf(stdout,"\033[1;34mRESULT: \033[0mAn error has occured\n\n");
 			fflush(stdout);	
 		}
 
 	}else if(!strcmp(token,"/diseaseFrequency")){
 
 		fprintf(stdout,"\033[1;36mREQUEST:  \033[0m%s\n",tempbuffer );
+		fflush(stdout);
 		tok = strtok(buff,s);	
 		
 		if(!strcmp(tok,"1")){
 			tok = strtok(NULL,s);
-			fprintf(stdout,"\033[1;36mRESULT:  \033[0m%s\n",tok);
+			fprintf(stdout,"\033[1;34mRESULT:  \033[0m%s\n\n",tok);
 			fflush(stdout);
 		}else if(!strcmp(tok,"-1")){
-			fprintf(stdout,"\033[1;36mRESULT: \033[0mAn error has occured\n");
+			fprintf(stdout,"\033[1;34mRESULT: \033[0mAn error has occured\n\n");
 			fflush(stdout);	
 		}
+	}else{
+		err("Wrong Command");
 	}
 
 	funlockfile(stdout);
@@ -174,8 +179,8 @@ void * thread_function(void * arg){
 
 int main(int argc, char const *argv[]){
 
-	char queryFile[32],servIP[32];
-	int numThreads,servPort;
+	char queryFile[32];
+	int numThreads;
 	FILE* fp;
 	char* line = NULL;
 	size_t len = 0;
@@ -211,7 +216,6 @@ int main(int argc, char const *argv[]){
 	pthread_mutex_init(&mtx,NULL);
 	pthread_cond_init(&cond,NULL);
 	pthread_cond_init(&condWaiting,NULL); 
-	pthread_mutex_init(&print_mtx,0);
 
 	activeThreads = waitingThreads = readyFlag = 0;
 
@@ -225,8 +229,12 @@ int main(int argc, char const *argv[]){
 
 	for(int i=0 ; i < numThreads ; i++){
 		getline(&line,&len,fp);	
-		lines[i] = malloc((strlen(line)+1)*sizeof(char));
-		strcpy(lines[i],line);
+		lines[i] = malloc((strlen(line)+2)*sizeof(char));
+		
+		if((i+1)!=numOfLines)
+			strncpy(lines[i],line,strlen(line)-1);
+		else
+			strcpy(lines[i],line);
 
 		if(pthread_create(tids+i, NULL ,thread_function, (void*) lines[i])<0)
 			err("create thread");
@@ -253,39 +261,6 @@ int main(int argc, char const *argv[]){
 		  	pthread_mutex_unlock(&mtx);
 		}
 	}
-
-	// while(countThreads<numOfLines){
-	// 	getline(&line,&len,fp);	
-	// 	lines[i] = malloc((strlen(line)+1)*sizeof(char));
-	// 	strcpy(lines[i],line);
-
-	// 	if(pthread_create(tids+i, NULL ,thread_function, (void*) lines[i])<0)
-	// 		err("create thread");
-	// 	activeThreads++;
-	// 	countThreads++;
-
-	// 	if(countThreads == numOfLines){
-	// 		pthread_mutex_lock(&mtx);
-		    
-	// 	    while (waitingThreads < activeThreads){  // wait on 'condWaiting' until all active threads are waiting 
-	// 	      pthread_cond_wait(&condWaiting,&mtx);
-	// 	    }
-	// 	    if(waitingThreads != 0){
-	// 	      readyFlag = 1;
-	// 	      pthread_cond_broadcast(&cond);
-	// 	    }
-
-	// 	  	pthread_mutex_unlock(&mtx);
-
-	// 	  	pthread_mutex_lock(&mtx);
-		    
-	// 	    if(waitingThreads == 0)
-	// 	      readyFlag = 0;
-		  	
-	// 	  	pthread_mutex_unlock(&mtx);
-	// 	}
-
-	// }
 
 	for(int i=0 ; i < numThreads ; i++){		/* Wait for thread termination */
 		if(pthread_join(*(tids + i),NULL)<0) 
