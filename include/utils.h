@@ -40,10 +40,12 @@ void writeBytes(char * data,int wfd, int bufferSize);
 
 void sendStat(char* data,int bufferSize,int wfd);
 
-void savestat(int readFd,int bufferSize,char* data,int sizeOfdata);
-
 int findNum(int id,workerInfo ** array,int numWorkers);
 
 int findWorkerFromCountry(char* country, workerInfo ** array,int numWorkers,int *counter);
 
 int CheckDate(char entryDate[strlen(DATE)+1],char exitDate[strlen(DATE)+1]);
+
+void writeToSocket(int fd,char* message);
+
+void readFromSocket(int fd,char* buffer);

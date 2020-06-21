@@ -1,7 +1,7 @@
 # in order to execute this "Makefile" just type "make"
 
-OBJS   = src/master.o src/worker.o src/patient.o src/RBT.o src/comparators.o src/hashtable.o src/utils.o src/dataFunctions.o src/heap.o src/whoServer.o src/whoClient.o
-SOURCE = src/master.c src/worker.c src/patient.c src/RBT.c src/comparators.c src/hashtable.c src/utils.c src/dataFunctions.c src/heap.c src/whoServer.c src/whoClient.c
+OBJS   = master.o worker.o patient.o RBT.o comparators.o hashtable.o utils.o dataFunctions.o heap.o whoServer.o whoClient.o
+SOURCE = master.c worker.c patient.c RBT.c comparators.c hashtable.c utils.c dataFunctions.c heap.c whoServer.c whoClient.c
 HEADER = patient.h RBT.h comparators.h hashtable.h utils.h dataFunctions.h heap.h
 OUT    = master worker whoServer whoClient
 CC     = gcc
@@ -9,51 +9,51 @@ FLAGS  = -g -c
 
 all: master worker whoServer whoClient
 
-master: src/master.o src/utils.o
-	$(CC) -g src/master.o src/utils.o  -o master 
+master: master.o utils.o
+	$(CC) -g master.o utils.o  -o master 
 
-whoClient: src/whoClient.o 
-	$(CC) -g src/whoClient.o -o whoClient 
+whoClient: whoClient.o utils.o
+	$(CC) -g whoClient.o utils.o -o whoClient -lpthread
 
-whoServer: src/whoServer.o 
-	$(CC) -g src/whoServer.o -o whoServer 
+whoServer: whoServer.o utils.o
+	$(CC) -g whoServer.o utils.o -o whoServer -lpthread
 
-worker: src/worker.o src/patient.o src/RBT.o src/comparators.o src/dataFunctions.o src/hashtable.o src/utils.o src/heap.o
-	$(CC) -g src/worker.o src/patient.o src/RBT.o src/comparators.o src/utils.o  src/dataFunctions.o src/hashtable.o src/heap.o -o worker -lm
+worker: worker.o patient.o RBT.o comparators.o dataFunctions.o hashtable.o utils.o heap.o
+	$(CC) -g worker.o patient.o RBT.o comparators.o utils.o  dataFunctions.o hashtable.o heap.o -o worker -lm
 
 
-whoClient.o: src/whoClient.c 
-	$(CC) $(FLAGS) src/whoClient.c 
+whoClient.o: whoClient.c 
+	$(CC) $(FLAGS) whoClient.c 
 
-whoServer.o: src/whoServer.c 
-	$(CC) $(FLAGS) src/whoServer.c 
+whoServer.o: whoServer.c 
+	$(CC) $(FLAGS) whoServer.c 
 
-master.o: src/master.c 
-	$(CC) $(FLAGS) src/master.c 
+master.o: master.c 
+	$(CC) $(FLAGS) master.c 
 
-worker.o: src/worker.c
-	$(CC) $(FLAGS) src/worker.c 
+worker.o: worker.c
+	$(CC) $(FLAGS) worker.c 
 
-utils.o: src/utils.c
-	$(CC) $(FLAGS) src/utils.c 
+utils.o: utils.c
+	$(CC) $(FLAGS) utils.c 
 
-patient.o: src/patient.c
-	$(CC) $(FLAGS) src/patient.c
+patient.o: patient.c
+	$(CC) $(FLAGS) patient.c
 
-RBT.o: src/RBT.c
-	$(CC) $(FLAGS) src/RBT.c
+RBT.o: RBT.c
+	$(CC) $(FLAGS) RBT.c
 
-comparators.o: src/comparators.c
-	$(CC) $(FLAGS) src/comparators.c
+comparators.o: comparators.c
+	$(CC) $(FLAGS) comparators.c
 
-hashtable.o: src/hashtable.c
-	$(CC) $(FLAGS) src/hashtable.c
+hashtable.o: hashtable.c
+	$(CC) $(FLAGS) hashtable.c
 
-dataFunctions.o: src/dataFunctions.c
-	$(CC) $(FLAGS) src/dataFunctions.c
+dataFunctions.o: dataFunctions.c
+	$(CC) $(FLAGS) dataFunctions.c
 
-heap.o: src/heap.c
-	$(CC) $(FLAGS) src/heap.c 
+heap.o: heap.c
+	$(CC) $(FLAGS) heap.c 
 
 # clean house
 clean:

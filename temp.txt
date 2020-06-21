@@ -1,0 +1,5 @@
+/numPatientAdmissions EVD 13-11-1999 11-03-2014 
+/numPatientDischarges STEC 03-09-1990 09-11-1991  
+/numPatientDischarges CHOLERA 30-12-1998 01-03-2014 Albania 
+/diseaseFrequency H-FLU 17-08-2020 25-10-2020  
+/numPatientAdmissions EVD 13-11-1999 11-03-2014

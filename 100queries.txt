@@ -1,0 +1,100 @@
+/topk-AgeRanges 3 Guernsey EBOLA 19-07-2009 18-07-2011 
+/searchPatientRecord 77271 
+/numPatientDischarges FLU 02-02-2001 23-12-2013  
+/numPatientAdmissions HEP-D 22-10-2016 23-10-2018  
+/numPatientDischarges COVID-2019 12-07-2002 23-03-2004  
+/searchPatientRecord 66033 
+/topk-AgeRanges 4 Israel CHOLERA 14-06-2005 23-11-2010 
+/topk-AgeRanges 1 Iceland EVD 09-02-2005 15-01-2013 
+/numPatientAdmissions TB 29-03-1998 27-06-2013 Greenland 
+/searchPatientRecord 58167 
+/numPatientDischarges VISA 03-12-1990 11-09-2004  
+/numPatientDischarges VRSA 28-04-2002 06-09-2015  
+/searchPatientRecord 28997 
+/numPatientDischarges HEP-B 22-10-2002 10-12-2010  
+/searchPatientRecord 78688 
+/diseaseFrequency Q-FEVER 22-07-1999 10-04-2019  
+/diseaseFrequency H-FLU 12-03-2006 25-06-2013 Bangladesh 
+/topk-AgeRanges 4 Iran H1N1 08-08-2020 29-11-2020 
+/topk-AgeRanges 3 Niue HEP-E 28-12-2005 04-05-2011 
+/numPatientAdmissions COVID-2019 12-08-2001 07-07-2011 Guatemala 
+/topk-AgeRanges 2 Congo PID 07-03-1998 14-08-2013 
+/diseaseFrequency ANTHRAX 13-12-2003 26-03-2016 Egypt 
+/numPatientAdmissions FLU 03-10-2002 13-07-2007 Poland 
+/numPatientDischarges ZIKA 12-09-1996 18-12-2017 Jersey 
+/diseaseFrequency POLIO 19-12-1994 06-04-2007  
+/topk-AgeRanges 1 Vanuatu EEE 12-08-2004 25-01-2013 
+/searchPatientRecord 70556 
+/numPatientAdmissions EBOLA 12-09-1997 16-07-2006 Uganda 
+/topk-AgeRanges 4 Greece MERS-COV 17-06-2010 31-07-2017 
+/numPatientDischarges STEC 03-09-1990 09-11-1991  
+/numPatientDischarges CHOLERA 30-12-1998 01-03-2014 Venezuela 
+/diseaseFrequency H-FLU 17-08-2020 25-10-2020  
+/numPatientAdmissions EVD 13-11-1999 11-03-2014  
+/searchPatientRecord 96142 
+/numPatientAdmissions HPV 26-11-1998 27-04-2000 Aruba 
+/searchPatientRecord 92050 
+/topk-AgeRanges 4 Palau PID 25-03-2001 03-03-2016 
+/topk-AgeRanges 2 Zimbabwe HUS 26-02-2009 18-07-2016 
+/topk-AgeRanges 1 Botswana STEC 10-02-2008 21-01-2009 
+/numPatientAdmissions ANTHRAX 13-11-2019 23-11-2019 Niue 
+/diseaseFrequency STEC 05-05-2019 02-06-2020  
+/numPatientAdmissions MRSA 30-04-2007 26-04-2016 Uzbekistan 
+/numPatientAdmissions SARS 05-08-1993 05-07-2018  
+/topk-AgeRanges 2 India HEP-C 15-12-1991 07-08-2014 
+/numPatientDischarges SARS 02-12-2010 01-07-2012 Chile 
+/numPatientDischarges HPV 02-09-2002 04-05-2014  
+/numPatientAdmissions HEP-D 31-07-2009 13-03-2010  
+/topk-AgeRanges 1 Algeria COVID-2019 10-04-2009 05-06-2010 
+/searchPatientRecord 39908 
+/diseaseFrequency HAB 04-03-2007 27-05-2011  
+/numPatientDischarges TB 06-04-1990 19-07-1992  
+/numPatientAdmissions ANTHRAX 28-04-2000 07-04-2002  
+/topk-AgeRanges 1 Azerbaijan HEP-B 12-03-2020 10-04-2020 
+/numPatientAdmissions CRE 03-03-1998 17-09-1999 Liechtenstein 
+/numPatientAdmissions LGV 15-02-2015 19-05-2017  
+/numPatientDischarges CJD 26-08-1990 20-05-2001 Guinea 
+/diseaseFrequency HEP-E 12-02-2010 03-11-2013  
+/searchPatientRecord 53776 
+/numPatientDischarges H1N1 02-08-1999 10-01-2009 Vanuatu 
+/diseaseFrequency PID 10-11-2016 03-08-2019 Senegal 
+/numPatientAdmissions HPS 06-05-1998 08-12-2009 Algeria 
+/searchPatientRecord 48259 
+/searchPatientRecord 31659 
+/topk-AgeRanges 2 Colombia CHOLERA 08-06-1991 03-10-2015 
+/topk-AgeRanges 4 Honduras MERS-COV 04-04-2004 02-05-2008 
+/diseaseFrequency HUS 05-07-2003 29-11-2007  
+/searchPatientRecord 9930 
+/diseaseFrequency AFM 08-11-2005 09-01-2009  
+/diseaseFrequency VIBRIO 18-07-2004 20-03-2015  
+/diseaseFrequency HIV 25-10-2010 22-09-2019 Namibia 
+/topk-AgeRanges 3 France SARS 05-09-2004 01-04-2007 
+/diseaseFrequency FLU 17-07-2004 21-10-2014 Kenya 
+/diseaseFrequency VRSA 01-06-2006 02-12-2009  
+/numPatientDischarges EV-D68 19-08-2014 06-10-2020 Portugal 
+/diseaseFrequency CJD 29-05-2000 07-03-2003  
+/numPatientAdmissions H1N1 10-08-2005 08-11-2009 Bangladesh 
+/searchPatientRecord 88752 
+/topk-AgeRanges 2 Cyprus HPS 16-05-2014 07-06-2018 
+/numPatientDischarges POLIO 13-01-1990 13-11-2002  
+/diseaseFrequency H-FLU 18-06-2019 16-10-2019  
+/numPatientAdmissions STEC 28-12-1992 15-02-2017  
+/diseaseFrequency HPS 29-09-1997 24-09-2006  
+/searchPatientRecord 16881 
+/topk-AgeRanges 2 Thailand MRSA 31-03-1992 15-07-2008 
+/numPatientAdmissions LGV 12-07-2017 17-07-2020 Suriname 
+/topk-AgeRanges 3 Japan LTBI 18-02-2003 17-07-2012 
+/numPatientAdmissions HAB 02-02-2005 26-11-2005 Micronesia 
+/searchPatientRecord 5991 
+/diseaseFrequency HEP-B 01-02-2012 17-11-2020  
+/numPatientDischarges PID 06-07-2018 04-12-2019  
+/searchPatientRecord 62302 
+/searchPatientRecord 93763 
+/searchPatientRecord 29306 
+/numPatientDischarges STSS 08-10-2005 15-08-2018  
+/topk-AgeRanges 2 Somalia H1N1 20-12-1997 03-11-2016 
+/topk-AgeRanges 3 Mozambique SARS 06-05-2005 22-03-2019 
+/numPatientDischarges VIBRIO 09-09-2016 30-08-2018  
+/diseaseFrequency STREP-A 26-08-2010 30-05-2013  
+/topk-AgeRanges 2 Kazakhstan HEP-A 04-02-2013 14-09-2019 
+/topk-AgeRanges 1 Macedonia LTBI 09-01-1991 03-04-1991 

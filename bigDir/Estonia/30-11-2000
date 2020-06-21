@@ -1,0 +1,20 @@
+109000 ENTER Juan Garza HPV 44
+109001 ENTER Angela Dawson EEE 3
+109000 EXIT Juan Garza HPV 44
+109003 ENTER Carolyn Cunningham HEP-D 43
+109001 EXIT Angela Dawson EEE 3
+109005 ENTER Kayla Hines HEP-E 84
+109003 EXIT Carolyn Cunningham HEP-D 43
+109005 EXIT Kayla Hines HEP-E 84
+
+
+
+
+109012 ENTER Teresa Ballard ZIKA 9
+109012 EXIT Teresa Ballard ZIKA 9
+109014 ENTER Morgan Freeman STREP-A 91
+109014 EXIT Morgan Freeman STREP-A 91
+109016 ENTER Savannah Saunders VIBRIO 34
+109017 ENTER Terri Shaw HAB 37
+109018 ENTER Krystal Eaton SARS 87
+109016 EXIT Savannah Saunders VIBRIO 34
