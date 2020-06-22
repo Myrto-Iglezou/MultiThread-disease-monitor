@@ -586,7 +586,7 @@ int main(int argc, char const *argv[]){
 								strcat(readbuffer,"$");
 								write(server_fd,readbuffer,strlen(readbuffer)+1); 
 							}else{
-								strcpy(readbuffer,"1");
+								strcpy(readbuffer,"@");
 								strcat(readbuffer,"$");
 								strcat(readbuffer,tempbuffer);
 								write(server_fd,readbuffer,strlen(readbuffer)+1); 	// send the result
@@ -647,7 +647,7 @@ int main(int argc, char const *argv[]){
 								strcat(readbuffer,"$");
 								write(server_fd,readbuffer,strlen(readbuffer)+1); 
 							}else{
-								strcpy(readbuffer,"1");
+								strcpy(readbuffer,"@");
 								strcat(readbuffer,"$");
 								strcat(readbuffer,tempbuffer);
 								write(server_fd,readbuffer,strlen(readbuffer)+1); 	// send the result
@@ -656,6 +656,7 @@ int main(int argc, char const *argv[]){
 					}
 				}				
 			}
+			close(server_fd);
 		}
 	}
 

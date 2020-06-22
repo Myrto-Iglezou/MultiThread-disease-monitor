@@ -148,12 +148,20 @@ void * thread_function(void * arg){
 				socket_array[i] = sock;
 			}
 		/*-------------------------------------------------------------------------------------*/
-
+			char commandbuffer[100];
+		
 			if(read(data->fd,buff,sizeof(buff))<0)		// read the query from the client
 				err("read");
 
-			strcpy(readbuff,buff);
-			command = strtok(readbuff," ");			// find the command
+			strcpy(commandbuffer,buff);
+
+			command = strtok(commandbuffer," ");			// find the command
+
+			char k[10];
+			char* t = strtok(NULL," ");
+			strcpy(k,t);
+
+
 			char* tok;
 			int flag;
 
@@ -163,7 +171,6 @@ void * thread_function(void * arg){
 			}
 
 			flockfile(stdout);			// lock the stdout, so one thread can write
-
 			fprintf(stdout,"\033[1;38mREQUEST:  \033[0m%s\n",buff );
 			fflush(stdout);
 			
@@ -206,7 +213,10 @@ void * thread_function(void * arg){
 			}else if(!strcmp(command,"/topk-AgeRanges")){
 				flag = FALSE;
 				char tempbuffer[150];
+				char writebuffer[150];
+				
 				for (int i = 0; i < numOfWorkers; i++){
+					char readbuffer[150];
 					if(read(socket_array[i],readbuff,sizeof(readbuff))<0)
 						err("read");
 					strcpy(tempbuffer,readbuff);
@@ -215,6 +225,8 @@ void * thread_function(void * arg){
 						flag = TRUE;
 						if(write(data->fd,readbuff,strlen(readbuff)+1)<0)
 							err("write");
+						strcpy(writebuffer,readbuff);
+						break;
 					}
 				}
 				if(!flag){		// if none of the workers found ranges
@@ -225,23 +237,22 @@ void * thread_function(void * arg){
 						err("write");
 					fprintf(stdout,"\033[1;32mRESULT:  \033[0m Something was wrong with query format\n\n");
 				}else{
-					char* token,*tok;
-					command = strtok(NULL," ");
-					if(atoi(command)>4)			// if the number requested is greater than the number of the ranges
-						strcpy(token,"4");
-					tok = strtok(readbuff,"$");
+					char* token,*tok;	
+					if(atoi(k)>4)			// if the number requested is greater than the number of the ranges
+						strcpy(k,"4");
+					tok = strtok(writebuffer,"$");
 					fprintf(stdout,"\033[1;32mRESULT:  \033[0m\n");
 					fflush(stdout);
 
-					for(int i=0 ; i<2*atoi(command) ; i++){
+					for(int i=0 ; i<2*atoi(k) ; i++){
 						tok = strtok(NULL,"$");
-						if(!strcmp(tok,"0"))
+						if( tok!=NULL && !strcmp(tok,"0"))
 							fprintf(stdout,"0-20: ");
-						else if(!strcmp(tok,"1"))
+						else if(tok!=NULL && !strcmp(tok,"1"))
 							fprintf(stdout,"21-40: ");
-						else if(!strcmp(tok,"2"))
+						else if(tok!=NULL && !strcmp(tok,"2"))
 							fprintf(stdout,"41-60: ");
-						else if(!strcmp(tok,"3"))
+						else if(tok!=NULL && !strcmp(tok,"3"))
 							fprintf(stdout,"60+: ");
 						else if(tok!=NULL)
 							fprintf(stdout, "%s\n",tok);
@@ -288,21 +299,22 @@ void * thread_function(void * arg){
 				flag = FALSE;
 				char temp[150];
 				char writebuffer[512];
-				char readbuffer[512];
+				char readbuff[512];
 				strcpy(writebuffer,"");
 				int total = 0;
 				int secFlag = FALSE;
 
-				for (int i = 0; i < numOfWorkers; i++){				
+				for (int i = 0; i < numOfWorkers; i++){		
+					char readbuff[512];		
 					if(read(socket_array[i],readbuff,sizeof(readbuff))<0)
 						err("read");
 					strcpy(temp,readbuff);
 					tok = strtok(temp,"$");
-					if(strcmp(tok,"-1") && strcmp(tok,"1")){	// if no specific country is given or there wasn't an error
+					if(strcmp(tok,"-1") && strcmp(tok,"@")){	// if no specific country is given or there wasn't an error
 						flag=TRUE;
 						total += atoi(tok);		// add the results of all workers				
 						
-					}else if(!strcmp(tok,"1")){		// if a specific country is given, we expect result from one worker
+					}else if(!strcmp(tok,"@")){		// if a specific country is given, we expect result from one worker
 						flag = TRUE;
 						secFlag = TRUE;
 						if(write(data->fd,readbuff,strlen(readbuff)+1)<0)
@@ -310,7 +322,8 @@ void * thread_function(void * arg){
 						tok = strtok(readbuff,"$");
 						tok = strtok(NULL,"$");
 						fprintf(stdout,"\033[1;32mRESULT:  \033[0m%s\n\n",tok);	// we expect result for every country
-						fflush(stdout);						
+						fflush(stdout);	
+						break;					
 					}				
 				}
 				if(!flag){		// if flag is FALSE, an error has occured
@@ -337,8 +350,12 @@ void * thread_function(void * arg){
 				if(write(data->fd,readbuff,strlen(readbuff)+1)<0)
 					err("write");
 			}
+			close(data->fd);
+			for (int i = 0; i < numOfWorkers; i++){
+				close(socket_array[i]);
+			}
 			funlockfile(stdout);   // unlock the stdout, so another thread can write
-
+			free(data);
 		}else if(!strcmp(data->info,"s")){		// if a message has arrived in the port of statistics
 			/*  Receive Statistics */ 
 			statistics* stat = calloc(1,sizeof(statistics));
@@ -358,11 +375,12 @@ void * thread_function(void * arg){
 			
 			flockfile(stdout);
 			while(read(data->fd,stat,sizeof(statistics))>0){		// read statistics
-				printStat(stat);		// print staistics
+				// printStat(stat);		// print staistics
 			}
 			fprintf(stdout,"Receive Statistics\n");		
 			funlockfile(stdout);
 			free(stat);
+			close(data->fd);
 			free(data);
 		}else
 			err("problem with fd info");	
@@ -502,6 +520,7 @@ int main(int argc, char const *argv[]){
 	free(workersArray);
 	close(query_fd);
 	close(statistics_fd);
+	free(tids);
 	pthread_cond_destroy(&cond_nonempty);
 	pthread_cond_destroy(&cond_nonfull);
 	pthread_mutex_destroy(&mtx);

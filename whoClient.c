@@ -83,9 +83,11 @@ void * thread_function(void * arg){
 	if(!strcmp(token,"/topk-AgeRanges")){
 		fprintf(stdout,"\033[1;36mREQUEST:  \033[0m%s\n",tempbuffer );
 		fflush(stdout);
+		char k[10];
 		token = strtok(NULL," ");
-		if(atoi(token)>4)			// if the number requested is greater than the number of the ranges
-			strcpy(token,"4");
+		strcpy(k,token);
+		if(atoi(k)>4)			// if the number requested is greater than the number of the ranges
+			strcpy(k,"4");
 		tok = strtok(buff,s);
 		if(!strcmp(tok,"-1")){
 			fprintf(stdout,"\033[1;34mRESULT: \033[0mAn error has occured\n\n");
@@ -94,15 +96,15 @@ void * thread_function(void * arg){
 			fprintf(stdout,"\033[1;34mRESULT:  \033[0m\n");
 			fflush(stdout);
 
-			for(int i=0 ; i<2*atoi(token) ; i++){
+			for(int i=0 ; i<2*atoi(k) ; i++){
 				tok = strtok(NULL,s);
-				if(!strcmp(tok,"0"))
+				if(tok!=NULL && !strcmp(tok,"0"))
 					fprintf(stdout,"0-20: ");
-				else if(!strcmp(tok,"1"))
+				else if(tok!=NULL && !strcmp(tok,"1"))
 					fprintf(stdout,"21-40: ");
-				else if(!strcmp(tok,"2"))
+				else if(tok!=NULL && !strcmp(tok,"2"))
 					fprintf(stdout,"41-60: ");
-				else if(!strcmp(tok,"3"))
+				else if(tok!=NULL && !strcmp(tok,"3"))
 					fprintf(stdout,"60+: ");
 				else if(tok!=NULL)
 					fprintf(stdout, "%s\n",tok);
@@ -131,11 +133,11 @@ void * thread_function(void * arg){
 		fprintf(stdout,"\033[1;36mREQUEST:  \033[0m%s\n",tempbuffer );
 		fflush(stdout);
 		tok = strtok(buff,s);	
-		if(strcmp(tok,"-1") && strcmp(tok,"1")){		// if the answer of server is not 1, neither -1 no country is given
+		if(strcmp(tok,"-1") && strcmp(tok,"@")){		// if the answer of server is not 1, neither -1 no country is given
 			fprintf(stdout,"\033[1;34mRESULT:  \033[0m%s\n\n",tok);	// we expect result for every country
 			fflush(stdout);	
 			
-		}else if(!strcmp(tok,"1")){				// if 1 is send we expect result for a specific country
+		}else if(!strcmp(tok,"@")){				// if 1 is send we expect result for a specific country
 			tok = strtok(NULL,s);
 			fprintf(stdout,"\033[1;34mRESULT:  \033[0m%s\n\n",tok);
 			fflush(stdout);
@@ -291,6 +293,6 @@ int main(int argc, char const *argv[]){
 	}
 	free(lines);
 	free(tids);
-	close(fp);
+	fclose(fp);
 	return 0;
 }
