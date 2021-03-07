@@ -1,21 +1,25 @@
 
-	      ΠΑΝΕΠΙΣΤΗΜΙΟ ΑΘΗΝΩΝ
-    Τμήμα Πληροφορικής και Τηλεπικοινωνιών
-	Κ24:Προγραμματισμός Συστήματος
-		   3η Εργασία
+# System-Programming-project3
 
+__Compile__: ```make```
+__Execution for master__: ```./master -w 4 -b 256 -s 127.0.0.1 -p 3004 -i testDir``` <br>
+__Execution for server__: ```./whoServer -w 10 -b 50 -q 3002 -s 3004``` <br>
+__Execution for client__: ```./whoClient -q queries.txt -w 10 -sp 3002 -sip 127.0.0.1``` <br>
 
-Όν/μο:  Ιγγλέζου Μυστώ
-Α.Μ.: 1115201700038
+## Project Description
 
-Εντολή Μεταγλώττισης: make
+This project requires the implementation three programs:
+1. a master program that creates a series of Worker processes.
+2. a multi-threaded whoServer that collects summary statistics from the Worker processes through a network and queries from clients.
+3. a multithreaded client whoClient program that generates multiple threads, where each thread plays the role of a client that sends queries to whoServer.
 
-Εντολή εκτέλεσης για master: ./master -w 4 -b 256 -s 127.0.0.1 -p 3004 -i testDir
-Εντολή εκτέλεσης για server: ./whoServer -w 10 -b 50 -q 3002 -s 3004
-Εντολή εκτέλεσης για client: ./whoClient -q queries.txt -w 10 -sp 3002 -sip 127.0.0.1
+Τhese programs communicate with each other through sockets where needed.
 
-Όπου οι σημαίες δηλώνουν αυτά που ζητήθηκαν στην εκφώνηση της εργασίας.
+### A. The master program
 
+``` ./master –w numWorkers -b bufferSize –s serverIP –p serverPort -i input_dir ```
+
+<p> In the beginning, the master program starts certain number of Workers ( *numWorkers* ) child processes and distributes the subdirectories evenly with the countries in *input_dir* to the Workers. Then it has to inform each Worker via named pipe about the subdirectories that the Worker will undertake.The parent process sends via named pipe both the IP address and the port number of whoServer. When the creation of Worker processes is finished,  parent process remains to fork a new Worker process in case an existing Worker suddenly terminates. </p>
 Σχεδιαστικές επιλογές:
 
 -Ολα τα ερωτήματα υπολογίζονται στους workers και τα αποτελέσματα στέλνονται στον
