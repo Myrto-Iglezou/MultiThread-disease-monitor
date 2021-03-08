@@ -1,7 +1,7 @@
 
 # System-Programming-project3
 
-__Compile__: ```make```
+__Compile__: ```make``` <br>
 __Execution for master__: ```./master -w 4 -b 256 -s 127.0.0.1 -p 3004 -i testDir``` <br>
 __Execution for server__: ```./whoServer -w 10 -b 50 -q 3002 -s 3004``` <br>
 __Execution for client__: ```./whoClient -q queries.txt -w 10 -sp 3002 -sip 127.0.0.1``` <br>
@@ -14,6 +14,9 @@ This project requires the implementation three programs:
 3. a multithreaded client whoClient program that generates multiple threads, where each thread plays the role of a client that sends queries to whoServer.
 
 Τhese programs communicate with each other through sockets where needed.
+
+![](/images/syspro3.PNG?raw=true "Communication of programs")
+ 
 
 ### A. The master program
 
@@ -51,34 +54,11 @@ Given the country argument, whoServer will find the total number of patients wit
 ``` ./whoClient –q queryFile -w numThreads –sp servPort –sip servIP ```
 
 <p> The whoClient program starts and opens the queryFile file, and then reads it line by line. On each line there is one command that the whoServer can accept. For each command it creates a thread which will send the command (in the line) to whoServer. The thread is created, but it does not connect immediately to the whoServer. When all the threads are created, ie we have one thread for each command in the file, then the threads should start all together to try to connect to whoServer and send their command. When the command is sent, each thread prints the response received from whoServer to stdout and may end. When all threads are terminated, the whoClient terminates as well. </p>
-Σχεδιαστικές επιλογές:
 
--Ολα τα ερωτήματα υπολογίζονται στους workers και τα αποτελέσματα στέλνονται στον
-server, ο οποιίος με τη σειρά του τα εκτυπώνει και τα στέλνει στον client.
+### Implemantation techniques
 
--Για την επικοινωνία ανάμεσα σε master και workers γίνεται μέσω named pipe, όπως
-στην δεύτερη εργασια.
+- Communication between master and workers is done through named pipes.
+- For workers, records are stored in a red black tree, which has the complexity of searching and entering, both in the middle and in the worst case O (logn).
+- Handling was used for the SIGINT and SIGCHLD signals in the master, in order to clear the memory in the case of the first and to create a new worker in the case of the second.
+-The Worker, after calculating the results, sends them to the server in a message, which has smaller messages separated by the character "$". If there is a "-1" at the beginning of the message, then the server realizes that what it requested could not be found. He communicates with the client in the same way.
 
--Στους workers η αποθήκευση των εγγραφών γίνεται σε red black tree, το
-οποίο έχει πολυπλοκότητα αναζήτησης και εισαγωγής, τόσο στην μέση, όσο και
-στην χειρότερη περίπτωση O(logn).
-
--Οι ημερομηνίες που δέχεται στο πρόγραμμα στην είσοδο είναι της μορφής:
-DD-MM-YYYY
-Για να γίνει ο έλεγχος των διαστημάτων εξετάζεται αν η ημερομηνία
-εισαγωγής είναι μέσα στο διάστημα που ζητήθηκε.
-
--Χρησιμοποιήθηκε handling για τα signals SIGINT και SIGCHLD στον master, ώστε να 
-καθαρίζεται η μνήμη στην περίπτωση του πρώτου και να δημιουργείται νέος worker στην 
-περίπτωση του δεύτερου.
-
--Ο worker αφού υπολογίσει τα αποτελέσματα, τα στέλνει στον server σε ένα 
-μήνυμα (δηλαδή ένα write), το οποίο αποτελείται απο μικρότερα μηνύματα χωρισμένα 
-με τον χαρακτήρα "$". Αν στην αρχή του μηνύματος υπάρχει το "-1", τότε ο  server
-αντιλαμβάνεται ότι αυτό που ζήτησε δεν μπόρεσε να βρεθεί. Με τον ίδιο τρόπο επικοινωνεί
-και ο ίδιος με τον client. 
-
--Ο client αρχικά διαβάζει μια φορά το αρχείο και μετρά τις ερωτήσεις. Στην συνέχεια τρέχει
-ταυτόχρονα numThreads και οσο υπάρχουν ακόμα εντολές τρέχει ταυτόχρονα κάθε numThreads. Το 
-κομμάτι του κώδικα που υλοποιεί το ταυτόχρονο ξεκίνημα των threads είναι εμπνευσμένο από 
-διαδικτυακή πηγή (stackoverflow).  
